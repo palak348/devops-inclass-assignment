@@ -12,8 +12,8 @@
 The objective of this practical was to install and configure **Minikube** on a local
 machine, verify that the Kubernetes cluster is healthy, explore the Kubernetes
 architecture (control plane + node components), learn the basic Kubernetes objects
-and `kubectl` commands, and complete the official **Kubernetes Basics** tutorial
-hands-on — deploy an app, explore it, expose it, scale it, and update it.
+and `kubectl` commands, and work through the official **Kubernetes Basics** tutorial
+hands-on — deploy an app, explore it, expose it and scale it.
 
 ---
 
@@ -244,7 +244,7 @@ Minikube both roles live on the single `minikube` node, which is why it shows th
 | **Container runtime** | Pulls images and runs containers. Here it is **containerd 2.3.4** — Minikube no longer uses Docker as the in-cluster runtime by default. |
 | **kube-proxy** | Programs iptables/IPVS rules so traffic sent to a Service's ClusterIP is load-balanced to the backing Pod IPs. |
 | **CNI plugin (kindnet)** | Gives every Pod its own routable IP and makes Pod-to-Pod traffic work across the cluster. |
-| **CoreDNS** | Cluster DNS. Resolves Service names such as `nginx-demo-svc.k8s-fundamentals.svc.cluster.local` to ClusterIPs. |
+| **CoreDNS** | Cluster DNS. Resolves Service names such as `kubernetes-bootcamp.default.svc.cluster.local` to ClusterIPs. |
 
 **What happens when you run `kubectl create deployment`:**
 
@@ -524,229 +524,19 @@ kubernetes-bootcamp-5cc66bcc9b-wnbnz   1/1     Terminating   0          26s
 kubernetes-bootcamp-5cc66bcc9b-xpqh9   1/1     Terminating   0          26s
 ```
 
-### Module 6 — Update the app (rolling update)
-
-```bash
-kubectl set image deployments/kubernetes-bootcamp kubernetes-bootcamp=jocatalin/kubernetes-bootcamp:v2
-kubectl rollout status deployments/kubernetes-bootcamp
-```
-
-```
-deployment.apps/kubernetes-bootcamp image updated
-
-Waiting for deployment "kubernetes-bootcamp" rollout to finish: 2 out of 4 new replicas have been updated...
-Waiting for deployment "kubernetes-bootcamp" rollout to finish: 3 out of 4 new replicas have been updated...
-Waiting for deployment "kubernetes-bootcamp" rollout to finish: 1 old replicas are pending termination...
-Waiting for deployment "kubernetes-bootcamp" rollout to finish: 3 of 4 updated replicas are available...
-deployment "kubernetes-bootcamp" successfully rolled out
-```
-
-```bash
-kubectl get pods
-```
-
-```
-NAME                                   READY   STATUS        RESTARTS   AGE
-kubernetes-bootcamp-5cc66bcc9b-52rqr   1/1     Terminating   0          2m7s
-kubernetes-bootcamp-5cc66bcc9b-9sprk   1/1     Terminating   0          63s
-kubernetes-bootcamp-7d5c7d7dc4-5v4nc   1/1     Running       0          1s
-kubernetes-bootcamp-7d5c7d7dc4-f2m77   1/1     Running       0          10s
-kubernetes-bootcamp-7d5c7d7dc4-hldsf   1/1     Running       0          10s
-kubernetes-bootcamp-7d5c7d7dc4-tz9k6   1/1     Running       0          2s
-```
-
-Old Pods (`5cc66bcc9b`) terminate only as new Pods (`7d5c7d7dc4`) come up — the app
-never goes fully down. Verify the new version is serving:
-
-```bash
-curl http://$(minikube ip):31655
-```
-
-```
-Hello Kubernetes bootcamp! | Running on: kubernetes-bootcamp-7d5c7d7dc4-hldsf | v=2
-Hello Kubernetes bootcamp! | Running on: kubernetes-bootcamp-7d5c7d7dc4-5v4nc | v=2
-```
-
-`v=1` has become `v=2`.
-
-### Rollback
-
-```bash
-kubectl rollout history deployments/kubernetes-bootcamp
-kubectl rollout undo deployments/kubernetes-bootcamp
-kubectl rollout status deployments/kubernetes-bootcamp
-```
-
-```
-deployment.apps/kubernetes-bootcamp
-REVISION  CHANGE-CAUSE
-1         <none>
-2         <none>
-
-deployment.apps/kubernetes-bootcamp rolled back
-deployment "kubernetes-bootcamp" successfully rolled out
-```
-
-```bash
-curl http://$(minikube ip):31655
-```
-
-```
-Hello Kubernetes bootcamp! | Running on: kubernetes-bootcamp-5cc66bcc9b-8dd28 | v=1
-Hello Kubernetes bootcamp! | Running on: kubernetes-bootcamp-5cc66bcc9b-k9bfx | v=1
-```
-
-```bash
-kubectl get rs -l app=kubernetes-bootcamp
-```
-
-```
-NAME                             DESIRED   CURRENT   READY   AGE
-kubernetes-bootcamp-5cc66bcc9b   4         4         4       2m38s
-kubernetes-bootcamp-7d5c7d7dc4   0         0         0       41s
-```
-
-The old ReplicaSet is scaled back to 4 and the v2 ReplicaSet to 0. Kubernetes keeps old
-ReplicaSets around precisely so a rollback is instant — this is the mechanism behind
-`rollout undo`.
-
-### Screenshot
-
-![rolling update and rollback](images/03-rolling-update.png)
+> **Note:** The Basics tutorial also has a final module on updating the app with a
+> rolling update. That is left out here on purpose — rolling updates, along with
+> Blue-Green, Canary and Recreate, are covered in depth in
+> **Session 10 — Kubernetes Pods, ReplicaSets & Deployments**.
 
 ---
 
-## Declarative Approach — YAML Manifests
-
-Everything above used imperative commands. The same objects defined declaratively live
-in [`manifests/`](manifests):
-
-| File | Object |
-|---|---|
-| `00-namespace.yaml` | Namespace `k8s-fundamentals` |
-| `01-pod.yaml` | A bare Pod with resource requests and limits |
-| `02-replicaset.yaml` | ReplicaSet with 2 replicas |
-| `03-deployment.yaml` | Deployment with 3 replicas |
-| `04-service.yaml` | NodePort Service fronting the Deployment |
-
-```bash
-kubectl apply -f manifests/
-```
-
-```
-namespace/k8s-fundamentals created
-pod/nginx-demo-pod created
-replicaset.apps/nginx-demo-rs created
-deployment.apps/nginx-demo-deploy created
-service/nginx-demo-svc created
-```
-
-```bash
-kubectl get all -n k8s-fundamentals -o wide
-```
-
-```
-NAME                                     READY   STATUS    RESTARTS   AGE   IP            NODE
-pod/nginx-demo-deploy-574b4fff95-k5bsc   1/1     Running   0          24s   10.244.0.55   minikube
-pod/nginx-demo-deploy-574b4fff95-qppwl   1/1     Running   0          23s   10.244.0.56   minikube
-pod/nginx-demo-deploy-574b4fff95-qzcxz   1/1     Running   0          25s   10.244.0.54   minikube
-pod/nginx-demo-pod                       1/1     Running   0          25s   10.244.0.53   minikube
-pod/nginx-demo-rs-dcfdh                  1/1     Running   0          69s   10.244.0.48   minikube
-pod/nginx-demo-rs-jwbmf                  1/1     Running   0          69s   10.244.0.49   minikube
-
-NAME                     TYPE       CLUSTER-IP      EXTERNAL-IP   PORT(S)        AGE   SELECTOR
-service/nginx-demo-svc   NodePort   10.99.127.122   <none>        80:30081/TCP   25s   app=nginx-deploy
-
-NAME                                READY   UP-TO-DATE   AVAILABLE   AGE   CONTAINERS   IMAGES
-deployment.apps/nginx-demo-deploy   3/3     3            3           69s   nginx        nginx:1.25-alpine
-
-NAME                                           DESIRED   CURRENT   READY   AGE
-replicaset.apps/nginx-demo-deploy-574b4fff95   3         3         3       25s
-replicaset.apps/nginx-demo-rs                  2         2         2       69s
-```
-
-```bash
-curl http://$(minikube ip):30081
-kubectl get endpoints nginx-demo-svc -n k8s-fundamentals
-```
-
-```
-<!DOCTYPE html>
-<html>
-<head>
-<title>Welcome to nginx!</title>
-
-NAME             ENDPOINTS                                      AGE
-nginx-demo-svc   10.244.0.54:80,10.244.0.55:80,10.244.0.56:80   33s
-```
-
-The Service's three endpoints exactly match the three Deployment Pod IPs.
-
-### Self-healing demonstration
-
-Deleting a Pod owned by a ReplicaSet does not remove it — the controller notices the gap
-between desired (2) and actual (1) and creates a replacement:
-
-```bash
-kubectl get pods -n k8s-fundamentals -l app=nginx-rs
-kubectl delete pod nginx-demo-rs-dcfdh -n k8s-fundamentals
-kubectl get pods -n k8s-fundamentals -l app=nginx-rs
-```
-
-```
-NAME                  READY   STATUS    RESTARTS   AGE
-nginx-demo-rs-dcfdh   1/1     Running   0          78s
-nginx-demo-rs-jwbmf   1/1     Running   0          78s
-
-pod "nginx-demo-rs-dcfdh" deleted from k8s-fundamentals namespace
-
-NAME                  READY   STATUS    RESTARTS   AGE
-nginx-demo-rs-jwbmf   1/1     Running   0          89s
-nginx-demo-rs-zcgrg   1/1     Running   0          11s     <-- new pod, created automatically
-```
-
-This is the reconciliation loop in action, and the practical reason Pods are managed
-through controllers instead of being created directly.
-
----
-
-## Issues Faced & Fixes
-
-While applying the manifests the first time, two things failed.
-
-**1. `ErrImagePull` on `nginx:1.27-alpine`**
-
-```
-Failed to pull image "nginx:1.27-alpine": failed to resolve reference
-"docker.io/library/nginx:1.27-alpine": failed to authorize: failed to fetch
-anonymous token: dial tcp: lookup auth.docker.io on 192.168.65.254:53: no such host
-```
-
-*Root cause:* DNS resolution from inside the Minikube node to `auth.docker.io` failed
-temporarily, so containerd could not get a Docker Hub pull token.
-*Fix:* switched the manifests to `nginx:1.25-alpine`, which was already in the node's
-image cache (checked with `minikube ssh -- sudo crictl images`), so no registry call is
-needed.
-
-**2. `provided port is already allocated`**
-
-```
-The Service "nginx-demo-svc" is invalid: spec.ports[0].nodePort:
-Invalid value: 30080: provided port is already allocated
-```
-
-*Root cause:* NodePort `30080` was already taken by an existing `nginx-service` in the
-`default` namespace. NodePorts are allocated cluster-wide, not per namespace.
-*Fix:* changed the manifest to `nodePort: 30081`.
-
----
 
 ## Cleanup
 
 ```bash
-kubectl delete -f manifests/
-kubectl delete deployment kubernetes-bootcamp
 kubectl delete service kubernetes-bootcamp
+kubectl delete deployment kubernetes-bootcamp
 minikube stop
 ```
 
@@ -762,7 +552,9 @@ containerd carry it out on the node.
 
 The hands-on tutorial made the core abstraction concrete: a **Deployment** owns a
 **ReplicaSet**, which owns **Pods**, and a **Service** gives those Pods a stable address.
-Scaling, rolling updates and rollbacks all work by the controller changing replica counts
-across ReplicaSets, never by mutating a running container. The self-healing demo showed
-the reconciliation loop directly — delete a Pod and Kubernetes puts it back, because the
-declared desired state is what matters, not the current state.
+Scaling works by the controller changing the replica count, never by touching a running
+container — Kubernetes constantly reconciles actual state towards the declared desired
+state, which is the idea everything else in Kubernetes is built on.
+
+With these fundamentals in place, the next session builds on the same Deployment →
+ReplicaSet → Pod chain to cover the deployment strategies and the Pod lifecycle.
