@@ -1,0 +1,18 @@
+# FIX #1: reference a key that actually exists in the ConfigMap.
+# Alternatively, add DATABASE_URL to the ConfigMap, or mark the ref optional.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: broken-configmap
+  namespace: session12
+spec:
+  containers:
+    - name: app
+      image: busybox:1.36
+      command: ["/bin/sh", "-c", "sleep 3600"]
+      env:
+        - name: DATABASE_URL
+          valueFrom:
+            configMapKeyRef:
+              name: app-config
+              key: APP_NAME          # <-- FIXED: key exists

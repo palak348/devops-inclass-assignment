@@ -1,0 +1,35 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: secret-demo
+  namespace: session12
+spec:
+  containers:
+    - name: app
+      image: busybox:1.36
+      command: ["/bin/sh", "-c", "sleep 3600"]
+
+      # METHOD 1: inject a secret key as an environment variable
+      env:
+        - name: DB_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: app-secret
+              key: DB_USERNAME
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: app-secret
+              key: DB_PASSWORD
+
+      # METHOD 2: mount the Secret as files (preferred - see README)
+      volumeMounts:
+        - name: secret-volume
+          mountPath: /etc/secrets
+          readOnly: true
+
+  volumes:
+    - name: secret-volume
+      secret:
+        secretName: app-secret
+        defaultMode: 0400   # read-only, owner only

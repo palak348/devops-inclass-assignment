@@ -1,0 +1,19 @@
+# FIX #3: point the Ingress at the Service that actually exists.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: broken-ingress
+  namespace: session12
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: broken.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: app-one-svc    # <-- FIXED: correct Service name
+                port:
+                  number: 80

@@ -1,0 +1,19 @@
+# BROKEN #1: the Pod references a ConfigMap key that does not exist.
+# app-config has APP_NAME, APP_ENV, LOG_LEVEL, MAX_CONNECTIONS, app.properties
+# -- but NOT "DATABASE_URL".
+apiVersion: v1
+kind: Pod
+metadata:
+  name: broken-configmap
+  namespace: session12
+spec:
+  containers:
+    - name: app
+      image: busybox:1.36
+      command: ["/bin/sh", "-c", "sleep 3600"]
+      env:
+        - name: DATABASE_URL
+          valueFrom:
+            configMapKeyRef:
+              name: app-config
+              key: DATABASE_URL     # <-- this key does not exist

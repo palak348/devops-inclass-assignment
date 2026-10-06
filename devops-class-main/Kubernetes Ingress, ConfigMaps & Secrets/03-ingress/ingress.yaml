@@ -1,0 +1,50 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: demo-ingress
+  namespace: session12
+  annotations:
+    # Strips the matched path prefix before forwarding, so /app-one/ becomes /
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+spec:
+  ingressClassName: nginx     # which controller should pick this up
+  rules:
+    # HOST-BASED routing
+    - host: app-one.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: app-one-svc
+                port:
+                  number: 80
+    - host: app-two.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: app-two-svc
+                port:
+                  number: 80
+    # PATH-BASED routing on a single host
+    - host: demo.local
+      http:
+        paths:
+          - path: /one(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: app-one-svc
+                port:
+                  number: 80
+          - path: /two(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: app-two-svc
+                port:
+                  number: 80
