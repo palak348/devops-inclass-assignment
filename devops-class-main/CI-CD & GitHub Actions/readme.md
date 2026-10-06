@@ -406,13 +406,28 @@ rather than `latest` makes every deployment traceable to an exact commit.
       - name: Update manifest with the new image tag
         run: sed -i "s|image: ghcr.io/.*cicd-demo:.*|image: $IMAGE|" "$MANIFEST"
       - name: Validate manifests
-        run: ./kubectl apply --dry-run=client -f "devops-class-main/CI-CD & GitHub Actions/k8s/"
+        run: ./kubeconform -summary -strict "devops-class-main/CI-CD & GitHub Actions/k8s/"
 ```
 
-> **Honest limitation:** the target cluster is a local Minikube with no public endpoint, so
-> a GitHub-hosted runner cannot reach it. The pipeline therefore renders the manifest with
-> the new image tag and validates it with `--dry-run=client`; the actual apply is shown
-> below, run locally. Deploying to a real cluster would add a kubeconfig secret:
+### Issue hit during the first pipeline run
+
+The validate step originally used `kubectl apply --dry-run=client` and **failed**:
+
+```
+The connection to the server localhost:8080 was refused - did you specify the right host or port?
+```
+
+*Root cause:* despite its name, `kubectl apply --dry-run=client` still contacts the API
+server for **resource discovery** before it can validate. A GitHub-hosted runner has no
+cluster and no kubeconfig, so the call fails.
+
+*Fix:* replaced it with **kubeconform**, which validates manifests against the Kubernetes
+JSON schemas completely offline — the correct tool for manifest linting in CI.
+
+> **Limitation:** the target cluster is a local Minikube with no public endpoint, so a
+> GitHub-hosted runner cannot reach it. The pipeline therefore renders the manifest with the
+> new image tag and validates it offline; the actual apply is shown below, run locally.
+> Deploying to a real cluster would add a kubeconfig secret:
 >
 > ```yaml
 > - uses: azure/k8s-set-context@v4
