@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "guestbook.fullname" . }}-config
+  labels:
+    {{- include "guestbook.labels" . | nindent 4 }}
+data:
+  APP_NAME: {{ .Values.config.appName | quote }}
+  ENVIRONMENT: {{ .Values.config.environment | quote }}
+  LOG_LEVEL: {{ .Values.config.logLevel | quote }}
+  index.html: |
+    <h1>{{ .Values.config.welcomeMessage }}</h1>
+    <p>environment: {{ .Values.config.environment }}</p>
+    <p>log level: {{ .Values.config.logLevel }}</p>
+    <p>release: {{ .Release.Name }} | chart: {{ .Chart.Name }}-{{ .Chart.Version }}</p>

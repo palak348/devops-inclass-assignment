@@ -1,0 +1,13 @@
+{{ .Chart.Name }} {{ .Chart.Version }} installed as release "{{ .Release.Name }}".
+
+Environment : {{ .Values.config.environment }}
+Replicas    : {{ if .Values.autoscaling.enabled }}autoscaled {{ .Values.autoscaling.minReplicas }}-{{ .Values.autoscaling.maxReplicas }}{{ else }}{{ .Values.replicaCount }}{{ end }}
+Image       : {{ .Values.image.repository }}:{{ .Values.image.tag }}
+
+Access the application:
+{{- if eq .Values.service.type "NodePort" }}
+  minikube ssh "curl -s http://localhost:{{ .Values.service.nodePort }}"
+{{- else }}
+  kubectl port-forward -n {{ .Release.Namespace }} svc/{{ include "guestbook.fullname" . }} 8080:{{ .Values.service.port }}
+  then open http://localhost:8080
+{{- end }}

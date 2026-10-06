@@ -1,0 +1,22 @@
+# Development overrides - minimal footprint, verbose logging, NodePort access.
+replicaCount: 1
+
+config:
+  environment: "development"
+  logLevel: "debug"
+  welcomeMessage: "Guestbook - DEV environment"
+
+service:
+  type: NodePort
+  nodePort: 30151
+
+resources:
+  requests:
+    cpu: 25m
+    memory: 16Mi
+  limits:
+    cpu: 100m
+    memory: 64Mi
+
+autoscaling:
+  enabled: false

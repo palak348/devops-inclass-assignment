@@ -1,0 +1,47 @@
+# Default values for the guestbook chart.
+# Overridden per environment by values-dev.yaml / values-prod.yaml.
+
+replicaCount: 2
+
+image:
+  repository: nginx
+  tag: "1.24-alpine"
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 80
+  nodePort: ""          # only used when type is NodePort
+
+# Non-secret configuration -> rendered into a ConfigMap
+config:
+  appName: "Guestbook"
+  environment: "default"
+  logLevel: "info"
+  welcomeMessage: "Welcome to the Guestbook"
+
+# Sensitive values -> rendered into a Secret
+secrets:
+  dbUsername: "guestbook"
+  dbPassword: "changeme"
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 32Mi
+  limits:
+    cpu: 200m
+    memory: 128Mi
+
+probes:
+  enabled: true
+
+autoscaling:
+  enabled: false
+  minReplicas: 2
+  maxReplicas: 6
+  targetCPUUtilizationPercentage: 70
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
