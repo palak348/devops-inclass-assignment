@@ -1,0 +1,20 @@
+# hostPath: mounts a file or directory FROM THE NODE's filesystem.
+# Data survives Pod deletion but is tied to that one node.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: hostpath-demo
+  namespace: session13
+spec:
+  containers:
+    - name: app
+      image: busybox:1.36
+      command: ["/bin/sh", "-c", "sleep 3600"]
+      volumeMounts:
+        - name: node-storage
+          mountPath: /node-data
+  volumes:
+    - name: node-storage
+      hostPath:
+        path: /tmp/k8s-hostpath-demo
+        type: DirectoryOrCreate

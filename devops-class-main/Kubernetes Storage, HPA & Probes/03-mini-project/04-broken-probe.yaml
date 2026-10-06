@@ -1,0 +1,21 @@
+# Demonstrates what a FAILING probe does.
+# The liveness probe points at a path nginx does not serve, so the container
+# is killed and restarted over and over -> climbing RESTARTS count.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: probe-failure-demo
+  namespace: session13
+spec:
+  containers:
+    - name: web
+      image: nginx:1.25-alpine
+      ports:
+        - containerPort: 80
+      livenessProbe:
+        httpGet:
+          path: /does-not-exist    # nginx returns 404 -> probe fails
+          port: 80
+        initialDelaySeconds: 5
+        periodSeconds: 5
+        failureThreshold: 2

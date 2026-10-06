@@ -1,0 +1,14 @@
+# Mini project - persistent storage for the web app.
+# Dynamic provisioning: the "standard" StorageClass creates the PV automatically.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: webapp-data
+  namespace: session13
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: standard
+  resources:
+    requests:
+      storage: 100Mi

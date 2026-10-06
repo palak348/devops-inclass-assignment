@@ -1,0 +1,19 @@
+# A Pod consuming the PVC. The Pod never references the PV directly -
+# it only knows about the claim.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: pvc-demo
+  namespace: session13
+spec:
+  containers:
+    - name: app
+      image: busybox:1.36
+      command: ["/bin/sh", "-c", "sleep 3600"]
+      volumeMounts:
+        - name: persistent-storage
+          mountPath: /data
+  volumes:
+    - name: persistent-storage
+      persistentVolumeClaim:
+        claimName: manual-pvc

@@ -1,0 +1,100 @@
+# Mini project - a web app combining all three session topics:
+#   STORAGE: a PVC mounted for persistent content
+#   PROBES:  startup, readiness and liveness probes
+#   HPA:     CPU requests set so the autoscaler can work (see 03-hpa.yaml)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: webapp
+  namespace: session13
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: webapp
+  template:
+    metadata:
+      labels:
+        app: webapp
+    spec:
+      # Seed the persistent volume with content on first start.
+      initContainers:
+        - name: init-content
+          image: busybox:1.36
+          command: ["/bin/sh", "-c"]
+          args:
+            - if [ ! -f /data/index.html ]; then
+                echo "<h1>WebApp</h1><p>content seeded from the PVC</p>" > /data/index.html;
+              fi
+          volumeMounts:
+            - name: webapp-storage
+              mountPath: /data
+
+      containers:
+        - name: web
+          image: nginx:1.25-alpine
+          ports:
+            - containerPort: 80
+
+          volumeMounts:
+            - name: webapp-storage
+              mountPath: /usr/share/nginx/html
+
+          resources:
+            requests:
+              cpu: 100m        # required for HPA utilisation targets
+              memory: 32Mi
+            limits:
+              cpu: 300m
+              memory: 128Mi
+
+          # STARTUP PROBE: gives a slow-starting container time to come up.
+          # While it is failing, liveness and readiness probes are DISABLED.
+          startupProbe:
+            httpGet:
+              path: /
+              port: 80
+            failureThreshold: 30     # up to 30 x 2s = 60s to start
+            periodSeconds: 2
+
+          # READINESS PROBE: decides whether the Pod receives Service traffic.
+          # Failing removes the Pod from endpoints but does NOT restart it.
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 2
+            periodSeconds: 5
+            timeoutSeconds: 2
+            successThreshold: 1
+            failureThreshold: 3
+
+          # LIVENESS PROBE: decides whether the container is restarted.
+          # Failing causes kubelet to kill and restart the container.
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 3
+
+      volumes:
+        - name: webapp-storage
+          persistentVolumeClaim:
+            claimName: webapp-data
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: webapp-svc
+  namespace: session13
+spec:
+  type: NodePort
+  selector:
+    app: webapp
+  ports:
+    - port: 80
+      targetPort: 80
+      nodePort: 30131

@@ -1,0 +1,39 @@
+# The target application. HPA needs CPU *requests* to be set - without them
+# it cannot compute a utilisation percentage and reports <unknown>.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: php-apache
+  namespace: session13
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: php-apache
+  template:
+    metadata:
+      labels:
+        app: php-apache
+    spec:
+      containers:
+        - name: php-apache
+          image: registry.k8s.io/hpa-example
+          ports:
+            - containerPort: 80
+          resources:
+            requests:
+              cpu: 200m      # <-- REQUIRED for HPA percentage targets
+            limits:
+              cpu: 500m
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: php-apache
+  namespace: session13
+spec:
+  selector:
+    app: php-apache
+  ports:
+    - port: 80
+      targetPort: 80

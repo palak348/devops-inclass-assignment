@@ -1,0 +1,23 @@
+# Load generator: an infinite loop of HTTP requests against the Service.
+# The hpa-example image burns CPU on every request.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: load-generator
+  namespace: session13
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: load-generator
+  template:
+    metadata:
+      labels:
+        app: load-generator
+    spec:
+      containers:
+        - name: load
+          image: busybox:1.36
+          command: ["/bin/sh", "-c"]
+          args:
+            - while true; do wget -q -O- http://php-apache.session13.svc.cluster.local > /dev/null; done

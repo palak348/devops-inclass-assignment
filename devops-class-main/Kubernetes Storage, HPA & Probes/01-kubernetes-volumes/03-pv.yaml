@@ -1,0 +1,15 @@
+# PersistentVolume: a piece of storage in the cluster, provisioned by an
+# administrator. It is a CLUSTER-SCOPED resource - it has no namespace.
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: manual-pv
+spec:
+  capacity:
+    storage: 1Gi
+  accessModes:
+    - ReadWriteOnce          # mountable read-write by a single node
+  persistentVolumeReclaimPolicy: Retain   # keep the data after the PVC is deleted
+  storageClassName: manual   # matched against the PVC's storageClassName
+  hostPath:
+    path: /tmp/k8s-manual-pv

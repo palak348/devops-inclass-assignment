@@ -1,0 +1,14 @@
+# PersistentVolumeClaim: a REQUEST for storage by a user.
+# It binds to a PV that satisfies its size, access mode and storage class.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: manual-pvc
+  namespace: session13
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: manual
+  resources:
+    requests:
+      storage: 500Mi         # smaller than the PV's 1Gi - still binds

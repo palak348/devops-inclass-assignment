@@ -1,0 +1,14 @@
+# Dynamic provisioning: no PV is created by hand. The StorageClass's
+# provisioner creates one automatically to satisfy this claim.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: dynamic-pvc
+  namespace: session13
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: standard    # minikube's default StorageClass
+  resources:
+    requests:
+      storage: 200Mi
