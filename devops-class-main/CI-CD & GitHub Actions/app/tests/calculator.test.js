@@ -1,6 +1,6 @@
 const { test, describe } = require('node:test');
 const assert = require('node:assert');
-const { add, subtract, multiply, divide } = require('../src/calculator');
+const { add, subtract, multiply, divide, modulo } = require('../src/calculator');
 
 describe('calculator', () => {
   test('add returns the sum', () => {
@@ -22,5 +22,14 @@ describe('calculator', () => {
 
   test('divide by zero throws', () => {
     assert.throws(() => divide(1, 0), /Division by zero/);
+  });
+
+  test('modulo returns the remainder', () => {
+    assert.strictEqual(modulo(10, 3), 1);
+    assert.strictEqual(modulo(9, 3), 0);
+  });
+
+  test('modulo by zero throws', () => {
+    assert.throws(() => modulo(1, 0), /Modulo by zero/);
   });
 });

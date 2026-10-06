@@ -1,10 +1,10 @@
 // Minimal HTTP server using only the Node standard library, so the image
 // needs no dependencies and the build stays fast and reproducible.
 const http = require('http');
-const { add, subtract, multiply, divide } = require('./calculator');
+const { add, subtract, multiply, divide, modulo } = require('./calculator');
 
 const PORT = process.env.PORT || 3000;
-const APP_VERSION = process.env.APP_VERSION || '1.0.0';
+const APP_VERSION = process.env.APP_VERSION || '1.1.0';
 const ENVIRONMENT = process.env.ENVIRONMENT || 'local';
 
 const server = http.createServer((req, res) => {
@@ -22,7 +22,7 @@ const server = http.createServer((req, res) => {
     const op = url.searchParams.get('op') || 'add';
 
     try {
-      const ops = { add, subtract, multiply, divide };
+      const ops = { add, subtract, multiply, divide, modulo };
       if (!ops[op]) throw new Error(`Unknown operation: ${op}`);
       const result = ops[op](a, b);
       res.writeHead(200, { 'Content-Type': 'application/json' });
