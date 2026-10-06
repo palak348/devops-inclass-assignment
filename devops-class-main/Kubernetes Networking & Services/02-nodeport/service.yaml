@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: nodeport-svc
+  namespace: session11
+spec:
+  # NodePort opens the same port on EVERY node, forwarding to the Service.
+  # It is a superset of ClusterIP - a ClusterIP is still allocated.
+  type: NodePort
+  selector:
+    app: web-backend
+  ports:
+    - port: 80
+      targetPort: 80
+      nodePort: 30111   # must be in the 30000-32767 range

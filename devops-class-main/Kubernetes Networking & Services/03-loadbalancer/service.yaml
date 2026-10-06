@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: loadbalancer-svc
+  namespace: session11
+spec:
+  # LoadBalancer asks the cloud provider for an external load balancer.
+  # It is a superset of NodePort - ClusterIP and NodePort are both allocated.
+  # On Minikube there is no cloud provider, so EXTERNAL-IP stays <pending>
+  # until "minikube tunnel" is running.
+  type: LoadBalancer
+  selector:
+    app: web-backend
+  ports:
+    - port: 80
+      targetPort: 80

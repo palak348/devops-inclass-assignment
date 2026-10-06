@@ -1,0 +1,27 @@
+# Shared backend used by the ClusterIP, NodePort, LoadBalancer and Headless demos.
+# Each Pod writes its own name into index.html so responses identify the Pod.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web-backend
+  namespace: session11
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: web-backend
+  template:
+    metadata:
+      labels:
+        app: web-backend
+    spec:
+      containers:
+        - name: web
+          image: nginx:1.25-alpine
+          command: ["/bin/sh", "-c"]
+          args:
+            - echo "Hello from pod $HOSTNAME" > /usr/share/nginx/html/index.html
+              && nginx -g 'daemon off;'
+          ports:
+            - containerPort: 80
+              name: http

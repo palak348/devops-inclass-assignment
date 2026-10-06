@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: clusterip-svc
+  namespace: session11
+spec:
+  # ClusterIP is the default type. The Service gets a virtual IP that is
+  # reachable ONLY from inside the cluster.
+  type: ClusterIP
+  selector:
+    app: web-backend
+  ports:
+    - port: 80          # port the Service listens on
+      targetPort: 80    # port on the Pod
+      protocol: TCP

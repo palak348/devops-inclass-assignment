@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: headless-svc
+  namespace: session11
+spec:
+  # clusterIP: None makes this a HEADLESS Service: no virtual IP and no
+  # load balancing. A DNS lookup returns the A records of ALL ready Pods,
+  # letting the client choose which Pod to talk to.
+  clusterIP: None
+  selector:
+    app: web-backend
+  ports:
+    - port: 80
+      targetPort: 80
