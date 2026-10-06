@@ -85,10 +85,6 @@ CURRENT   NAME       CLUSTER    AUTHINFO   NAMESPACE
 *         minikube   minikube   minikube   default
 ```
 
-### Screenshot
-
-![minikube start](images/01-minikube-start.png)
-
 ---
 
 ## Task 2 — Verify Kubernetes Cluster Status
@@ -143,7 +139,7 @@ cluster is working.
 
 ### Screenshot
 
-![cluster status](images/02-cluster-status.png)
+![cluster status](images/01-cluster-status.png)
 
 ---
 
@@ -259,10 +255,6 @@ Minikube both roles live on the single `minikube` node, which is why it shows th
 5. The **scheduler** sees Pods with an empty `nodeName` and binds each to a node.
 6. The **kubelet** on that node sees Pods assigned to it and tells **containerd** to pull the image and start the container.
 7. kubelet reports status back to the apiserver, and `kubectl get pods` shows `Running`.
-
-### Screenshot
-
-![architecture / kube-system](images/03-architecture.png)
 
 ---
 
@@ -480,7 +472,7 @@ populated by matching the Service's `selector` against Pod labels.
 
 ### Screenshot
 
-![app exposed](images/04-expose-service.png)
+![app deployed and exposed](images/02-app-deployed.png)
 
 ### Module 5 — Scale the app
 
@@ -531,10 +523,6 @@ kubernetes-bootcamp-5cc66bcc9b-9sprk   1/1     Running       0          26s
 kubernetes-bootcamp-5cc66bcc9b-wnbnz   1/1     Terminating   0          26s
 kubernetes-bootcamp-5cc66bcc9b-xpqh9   1/1     Terminating   0          26s
 ```
-
-### Screenshot
-
-![scaling](images/05-scaling.png)
 
 ### Module 6 — Update the app (rolling update)
 
@@ -624,7 +612,7 @@ ReplicaSets around precisely so a rollback is instant — this is the mechanism 
 
 ### Screenshot
 
-![rolling update and rollback](images/06-rolling-update.png)
+![rolling update and rollback](images/03-rolling-update.png)
 
 ---
 
@@ -719,10 +707,6 @@ nginx-demo-rs-zcgrg   1/1     Running   0          11s     <-- new pod, created 
 
 This is the reconciliation loop in action, and the practical reason Pods are managed
 through controllers instead of being created directly.
-
-### Screenshot
-
-![declarative manifests](images/07-declarative.png)
 
 ---
 
