@@ -521,6 +521,45 @@ CD Pipeline
 Runs are visible under the repository's **Actions** tab. Artifacts are downloadable from
 each run's summary page.
 
+### Actual execution results
+
+Commit `fd1c4d5` ("feat: add modulo operation to the calculator API") — a real feature
+change adding a `modulo` operation and two tests, pushed specifically to exercise the whole
+chain:
+
+```
+WORKFLOW         | STATUS     | CONCLUSION | COMMIT
+CI Pipeline      | completed  | success    | fd1c4d5
+CD Pipeline      | completed  | success    | fd1c4d5
+```
+
+**CD Pipeline job and step breakdown:**
+
+```
+JOB: Build and Push Image -> success
+   [success] Checkout code
+   [success] Set up Docker Buildx
+   [success] Log in to GitHub Container Registry
+   [success] Compute image tag
+   [success] Build and push
+
+JOB: Deploy to Kubernetes -> success
+   [success] Checkout code
+   [success] Update manifest with the new image tag
+   [success] Validate manifests
+   [success] Deployment summary
+```
+
+The CD pipeline ran **only because CI succeeded first** — it was triggered by the
+`workflow_run` event, not by the push. The image was published to
+`ghcr.io/palak348/cicd-demo:fd1c4d5`.
+
+> **Note on the `paths` filter:** an earlier commit that changed only `cd.yml` and the
+> README triggered **no** pipeline at all, because `ci.yml` filters on
+> `devops-class-main/CI-CD & GitHub Actions/app/**`. Since CD chains off CI, nothing ran.
+> This is the filter working correctly — documentation edits should not consume CI minutes —
+> but it is worth knowing when a push seems to be ignored.
+
 ### Screenshots
 
 ![ci pipeline](images/01-ci-pipeline.png)
