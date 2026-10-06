@@ -1,0 +1,124 @@
+# =============================================================================
+# CD PIPELINE - Continuous Delivery / Deployment
+#
+# Runs only after the CI pipeline has SUCCEEDED on main. Its job is to take
+# the verified change and ship it: publish the image, then deploy it.
+# =============================================================================
+name: CD Pipeline
+
+on:
+  # Chain off the CI workflow instead of duplicating its triggers, so the
+  # CD pipeline can never run on a commit that failed CI.
+  workflow_run:
+    workflows: ["CI Pipeline"]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  APP_DIR: devops-class-main/CI-CD & GitHub Actions/app
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}/cicd-demo
+
+jobs:
+  # ===========================================================================
+  # JOB 1: PUSH IMAGE to the GitHub Container Registry
+  # ===========================================================================
+  publish:
+    name: Build and Push Image
+    runs-on: ubuntu-latest
+    # Gate: only proceed if the CI run that triggered this actually passed.
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'success'
+
+    # PERMISSIONS - least privilege for the automatic GITHUB_TOKEN
+    permissions:
+      contents: read
+      packages: write
+
+    outputs:
+      image-tag: ${{ steps.meta.outputs.tag }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # SECRETS - GITHUB_TOKEN is injected automatically by GitHub.
+      # A custom secret would be referenced the same way, e.g.
+      #   password: ${{ secrets.DOCKERHUB_TOKEN }}
+      # after adding it under Settings > Secrets and variables > Actions.
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Compute image tag
+        id: meta
+        run: |
+          TAG=$(echo "${{ github.sha }}" | cut -c1-7)
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          echo "Image will be tagged: $TAG"
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ env.APP_DIR }}
+          push: true
+          # Lowercase the repository name - GHCR rejects uppercase paths.
+          tags: |
+            ${{ env.REGISTRY }}/${{ github.repository_owner }}/cicd-demo:${{ steps.meta.outputs.tag }}
+            ${{ env.REGISTRY }}/${{ github.repository_owner }}/cicd-demo:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ===========================================================================
+  # JOB 2: DEPLOY - render the manifests with the new image tag
+  # ===========================================================================
+  deploy:
+    name: Deploy to Kubernetes
+    runs-on: ubuntu-latest
+    needs: publish
+    # ENVIRONMENT - can be configured in repo settings to require approval
+    # before a production deploy runs.
+    environment: production
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Update manifest with the new image tag
+        run: |
+          IMAGE="${{ env.REGISTRY }}/${{ github.repository_owner }}/cicd-demo:${{ needs.publish.outputs.image-tag }}"
+          MANIFEST="devops-class-main/CI-CD & GitHub Actions/k8s/deployment.yaml"
+          sed -i "s|image: ghcr.io/.*cicd-demo:.*|image: $IMAGE|" "$MANIFEST"
+          echo "Rendered manifest image line:"
+          grep "image:" "$MANIFEST"
+
+      - name: Validate manifests
+        run: |
+          curl -sLO "https://dl.k8s.io/release/$(curl -sL https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+          chmod +x kubectl
+          ./kubectl apply --dry-run=client -f "devops-class-main/CI-CD & GitHub Actions/k8s/"
+
+      # A real deployment needs cluster credentials, e.g.
+      #   - uses: azure/k8s-set-context@v4
+      #     with:
+      #       kubeconfig: ${{ secrets.KUBE_CONFIG }}
+      #   - run: kubectl apply -f k8s/
+      #
+      # This cluster is a local Minikube with no public endpoint, so the
+      # pipeline validates the manifests and the deployment is applied
+      # locally - see the README for that output.
+      - name: Deployment summary
+        run: |
+          echo "## CD Pipeline Result" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Image published: \`${{ env.REGISTRY }}/${{ github.repository_owner }}/cicd-demo:${{ needs.publish.outputs.image-tag }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Manifests validated with \`kubectl apply --dry-run=client\`." >> $GITHUB_STEP_SUMMARY

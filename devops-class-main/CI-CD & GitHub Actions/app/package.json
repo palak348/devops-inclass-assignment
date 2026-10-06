@@ -1,0 +1,14 @@
+{
+  "name": "cicd-demo-app",
+  "version": "1.0.0",
+  "description": "Demo application for the Session 16 CI/CD pipeline",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "test": "node --test",
+    "lint": "node --check src/server.js && node --check src/calculator.js"
+  },
+  "keywords": ["cicd", "github-actions", "devops"],
+  "author": "Palak Agrawal",
+  "license": "MIT"
+}
