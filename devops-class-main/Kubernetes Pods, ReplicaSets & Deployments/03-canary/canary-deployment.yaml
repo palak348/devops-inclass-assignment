@@ -1,0 +1,27 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app-canary
+  namespace: session10
+spec:
+  # 1 canary Pod against 4 stable Pods = roughly 20% of traffic
+  replicas: 1
+  selector:
+    matchLabels:
+      app: canary-demo
+      track: canary
+  template:
+    metadata:
+      labels:
+        app: canary-demo      # same shared label, so the Service picks it up too
+        track: canary
+    spec:
+      containers:
+        - name: web
+          image: nginx:1.25-alpine
+          command: ["/bin/sh", "-c"]
+          args:
+            - echo "CANARY VERSION (v2) - pod $HOSTNAME" > /usr/share/nginx/html/index.html
+              && nginx -g 'daemon off;'
+          ports:
+            - containerPort: 80

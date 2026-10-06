@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: canary-svc
+  namespace: session10
+spec:
+  type: NodePort
+  # Selects ONLY on the shared app label, deliberately ignoring "track".
+  # Both stable and canary Pods become endpoints, so traffic splits by Pod count.
+  selector:
+    app: canary-demo
+  ports:
+    - port: 80
+      targetPort: 80
+      nodePort: 30103

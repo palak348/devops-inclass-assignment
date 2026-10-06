@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: lifecycle-failed
+  namespace: session10
+spec:
+  restartPolicy: Never
+  containers:
+    - name: worker
+      image: busybox:1.36
+      # Non-zero exit code -> container Failed -> Pod phase Failed
+      command: ["/bin/sh", "-c", "echo 'something went wrong'; sleep 5; exit 1"]

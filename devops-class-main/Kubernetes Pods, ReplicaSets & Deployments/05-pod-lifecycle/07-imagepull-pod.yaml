@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: lifecycle-imagepull
+  namespace: session10
+spec:
+  containers:
+    - name: web
+      # This tag does not exist -> the Pod stays Pending with the container
+      # waiting in ErrImagePull / ImagePullBackOff.
+      image: nginx:this-tag-does-not-exist

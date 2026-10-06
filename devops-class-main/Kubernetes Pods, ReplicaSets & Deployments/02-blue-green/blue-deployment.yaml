@@ -1,0 +1,26 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app-blue
+  namespace: session10
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: bluegreen
+      version: blue
+  template:
+    metadata:
+      labels:
+        app: bluegreen
+        version: blue
+    spec:
+      containers:
+        - name: web
+          image: nginx:1.24-alpine
+          command: ["/bin/sh", "-c"]
+          args:
+            - echo "BLUE VERSION (v1) - pod $HOSTNAME" > /usr/share/nginx/html/index.html
+              && nginx -g 'daemon off;'
+          ports:
+            - containerPort: 80

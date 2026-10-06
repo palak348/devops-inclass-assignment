@@ -1,0 +1,26 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app-green
+  namespace: session10
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: bluegreen
+      version: green
+  template:
+    metadata:
+      labels:
+        app: bluegreen
+        version: green
+    spec:
+      containers:
+        - name: web
+          image: nginx:1.25-alpine
+          command: ["/bin/sh", "-c"]
+          args:
+            - echo "GREEN VERSION (v2) - pod $HOSTNAME" > /usr/share/nginx/html/index.html
+              && nginx -g 'daemon off;'
+          ports:
+            - containerPort: 80

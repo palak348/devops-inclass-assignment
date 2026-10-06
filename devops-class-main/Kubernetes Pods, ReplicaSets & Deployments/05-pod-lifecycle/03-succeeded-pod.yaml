@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: lifecycle-succeeded
+  namespace: session10
+spec:
+  # Never = do not restart when the container exits. Required to observe
+  # a terminal phase; with the default (Always) the Pod would restart forever.
+  restartPolicy: Never
+  containers:
+    - name: worker
+      image: busybox:1.36
+      command: ["/bin/sh", "-c", "echo 'job done'; sleep 5; exit 0"]
