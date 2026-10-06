@@ -1,0 +1,10 @@
+# FIX 2 & 3: use a tag that exists.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: issue-imagepull
+  namespace: session14
+spec:
+  containers:
+    - name: web
+      image: nginx:1.25-alpine      # <-- real tag

@@ -1,0 +1,30 @@
+# FIX 4b: use a StorageClass that exists ("standard" is minikube's default).
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: issue-pvc-fixed
+  namespace: session14
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: standard
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: issue-pending-pvc
+  namespace: session14
+spec:
+  containers:
+    - name: web
+      image: nginx:1.25-alpine
+      volumeMounts:
+        - name: data
+          mountPath: /data
+  volumes:
+    - name: data
+      persistentVolumeClaim:
+        claimName: issue-pvc-fixed

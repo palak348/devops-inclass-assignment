@@ -1,0 +1,14 @@
+# ISSUE 4a: Pending - no node has enough capacity.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: issue-pending-resources
+  namespace: session14
+spec:
+  containers:
+    - name: web
+      image: nginx:1.25-alpine
+      resources:
+        requests:
+          cpu: "64"          # impossible on this cluster
+          memory: "128Gi"

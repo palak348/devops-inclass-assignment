@@ -1,0 +1,42 @@
+# A known-good app, used as the reference point for Task 1 commands and as
+# the "working" side of the comparisons in Task 2.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: healthy-app
+  namespace: session14
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: healthy-app
+  template:
+    metadata:
+      labels:
+        app: healthy-app
+    spec:
+      containers:
+        - name: web
+          image: nginx:1.25-alpine
+          command: ["/bin/sh", "-c"]
+          args:
+            - echo "healthy app on $HOSTNAME" > /usr/share/nginx/html/index.html
+              && nginx -g 'daemon off;'
+          ports:
+            - containerPort: 80
+          resources:
+            requests:
+              cpu: 50m
+              memory: 32Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: healthy-app-svc
+  namespace: session14
+spec:
+  selector:
+    app: healthy-app
+  ports:
+    - port: 80
+      targetPort: 80

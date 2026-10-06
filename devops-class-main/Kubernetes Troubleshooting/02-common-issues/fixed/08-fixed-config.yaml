@@ -1,0 +1,10 @@
+# FIX 8: add the missing key to the ConfigMap.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-settings
+  namespace: session14
+data:
+  LOG_LEVEL: "info"
+  APP_PORT: "8080"
+  DATABASE_HOST: "postgres.session14.svc.cluster.local"   # <-- ADDED

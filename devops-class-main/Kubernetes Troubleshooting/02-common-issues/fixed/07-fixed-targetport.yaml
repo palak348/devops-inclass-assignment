@@ -1,0 +1,12 @@
+# FIX 7: point targetPort at the port the container actually listens on.
+apiVersion: v1
+kind: Service
+metadata:
+  name: healthy-app-wrongport
+  namespace: session14
+spec:
+  selector:
+    app: healthy-app
+  ports:
+    - port: 80
+      targetPort: 80       # <-- FIXED: nginx listens on 80

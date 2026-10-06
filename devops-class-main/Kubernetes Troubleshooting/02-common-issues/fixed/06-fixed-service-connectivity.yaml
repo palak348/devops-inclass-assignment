@@ -1,0 +1,12 @@
+# FIX 6: make the Service selector match the Pod labels.
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend-svc
+  namespace: session14
+spec:
+  selector:
+    app: backend-api      # <-- FIXED: matches the Deployment's pod labels
+  ports:
+    - port: 80
+      targetPort: 80

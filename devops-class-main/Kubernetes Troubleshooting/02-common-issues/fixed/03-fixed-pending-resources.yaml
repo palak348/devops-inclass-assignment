@@ -1,0 +1,14 @@
+# FIX 4a: request an amount the cluster can actually satisfy.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: issue-pending-resources
+  namespace: session14
+spec:
+  containers:
+    - name: web
+      image: nginx:1.25-alpine
+      resources:
+        requests:
+          cpu: 100m
+          memory: 64Mi

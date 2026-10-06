@@ -1,0 +1,14 @@
+# FIX 5: create the ConfigMap the Pod mounts.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nginx-config-missing
+  namespace: session14
+data:
+  default.conf: |
+    server {
+      listen 80;
+      location / {
+        return 200 "config mounted successfully\n";
+      }
+    }

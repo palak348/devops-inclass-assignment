@@ -1,0 +1,13 @@
+# ISSUE 2 & 3: ErrImagePull -> ImagePullBackOff
+# The tag does not exist in the registry. The first failures report
+# ErrImagePull; once kubelet starts spacing out retries it becomes
+# ImagePullBackOff.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: issue-imagepull
+  namespace: session14
+spec:
+  containers:
+    - name: web
+      image: nginx:9.99-does-not-exist

@@ -1,0 +1,39 @@
+# ISSUE 6: Service connectivity - selector mismatch.
+# The Deployment labels its Pods app=backend-api, but the Service selects
+# app=backend. Nothing matches, so the Service has NO endpoints.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend-api
+  namespace: session14
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: backend-api
+  template:
+    metadata:
+      labels:
+        app: backend-api        # <-- Pods are labelled "backend-api"
+    spec:
+      containers:
+        - name: web
+          image: nginx:1.25-alpine
+          command: ["/bin/sh", "-c"]
+          args:
+            - echo "backend on $HOSTNAME" > /usr/share/nginx/html/index.html
+              && nginx -g 'daemon off;'
+          ports:
+            - containerPort: 80
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend-svc
+  namespace: session14
+spec:
+  selector:
+    app: backend            # <-- but the Service looks for "backend"
+  ports:
+    - port: 80
+      targetPort: 80

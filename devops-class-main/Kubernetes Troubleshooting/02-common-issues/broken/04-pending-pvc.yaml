@@ -1,0 +1,31 @@
+# ISSUE 4b: Pending - the PVC references a StorageClass that does not exist,
+# so the claim never binds and the Pod can never be scheduled.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: issue-pvc
+  namespace: session14
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: fast-ssd-nonexistent    # <-- no such StorageClass
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: issue-pending-pvc
+  namespace: session14
+spec:
+  containers:
+    - name: web
+      image: nginx:1.25-alpine
+      volumeMounts:
+        - name: data
+          mountPath: /data
+  volumes:
+    - name: data
+      persistentVolumeClaim:
+        claimName: issue-pvc

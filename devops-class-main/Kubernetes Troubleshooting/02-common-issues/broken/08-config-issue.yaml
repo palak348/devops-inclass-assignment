@@ -1,0 +1,27 @@
+# ISSUE 8: Configuration issue - the Pod references a ConfigMap key that
+# does not exist, producing CreateContainerConfigError.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-settings
+  namespace: session14
+data:
+  LOG_LEVEL: "info"
+  APP_PORT: "8080"
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: issue-config
+  namespace: session14
+spec:
+  containers:
+    - name: app
+      image: busybox:1.36
+      command: ["/bin/sh", "-c", "sleep 3600"]
+      env:
+        - name: DATABASE_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: app-settings
+              key: DATABASE_HOST      # <-- key not present in the ConfigMap
