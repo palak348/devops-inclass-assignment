@@ -316,11 +316,11 @@ kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.pas
 
 ## Screenshots
 
-![prometheus targets and a firing alert](images/01-prometheus-alert.png)
+![scaling the demo app to zero and back, to drive the NoAppInstances alert](images/01-prometheus-alert.png)
 
-![cpu and memory utilisation](images/02-cpu-memory.png)
+![cpu and memory utilisation, per node and per container](images/02-cpu-memory.png)
 
-![argo cd syncing from git](images/03-argocd-sync.png)
+![port-forwarding the Argo CD server to reach its UI](images/03-argocd-sync.png)
 
 ---
 
