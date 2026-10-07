@@ -406,6 +406,28 @@ Two details that are easy to get wrong:
   `needs: security-gate`, so a red gate does not "flag" anything — the publish and
   deploy jobs simply never start.
 
+**The first run proved the gate works — the hard way.** The SCA job failed for a
+configuration reason (see *Issues Faced*, #8). Everything downstream behaved
+exactly as designed:
+
+```
+1. Build                      -> success
+2. Unit Test                  -> success
+3. SAST (Semgrep)             -> success
+4. SCA (npm audit + Trivy fs) -> failure
+5. Secret Scan (Gitleaks)     -> skipped
+6. Docker Build               -> skipped
+7. Container Image Scan       -> skipped
+8. Security Gate              -> FAILURE
+9. Push Image to GHCR         -> skipped
+10. Deploy to Kubernetes      -> skipped
+```
+
+No image was published and nothing was deployed. Note that the gate failed even
+though three scanners had passed and the other two never ran: `${VAR:-skipped}`
+turned that silence into a `fail`, which is the behaviour you want. A gate that
+treats "we did not check" as "it is fine" is not a gate.
+
 The gate writes its verdict table to the run summary:
 
 | Stage | Tool | Verdict |
@@ -631,6 +653,7 @@ networkpolicy.networking.k8s.io/notes-api-allow    app=notes-api
 | 5 | Gitleaks negative test found nothing | `AKIAIOSFODNN7EXAMPLE` is on the tool's own stopword list, and the `dotenv-committed` regex anchored with `^` without `(?m)` | used a realistic test value and added the `(?m)` multiline flag |
 | 6 | Whole-repo scan: 4 leaks in Sessions 12 and 15 | teaching placeholders in earlier coursework | reviewed each by hand, excused them by path in a documented `[[allowlists]]` block |
 | 7 | `kubectl apply --dry-run=server` failed on every file but the namespace | the namespace does not exist yet during a dry run | applied for real; the pipeline validates offline with `kubeconform` instead |
+| 8 | First pipeline run: the SCA job failed at **"Set up job"**, before a single step ran | the action was referenced as `aquasecurity/trivy-action@0.28.0`, but the repository's tags carry a `v` prefix (`v0.28.0`), so the reference could not be resolved | pinned to `aquasecurity/trivy-action@v0.36.0`. A failure in *Set up job* is the giveaway: no step executed, so it is never the scan itself — it is the job definition |
 
 ---
 
