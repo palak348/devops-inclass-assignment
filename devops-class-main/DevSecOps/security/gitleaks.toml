@@ -89,3 +89,16 @@ paths = [
   # made-up values to show how `stringData` and base64 encoding work.
   '''devops-class-main/Kubernetes Ingress, ConfigMaps & Secrets/.*''',
 ]
+
+# ---- allowlist: the write-up for this session -------------------------------
+# This README quotes the scanners' own output, so it necessarily contains the
+# fake values the scanners were pointed at: the `sk-live-...` string that the
+# Semgrep demo uses, and the demo bearer token in the curl examples. Scanning
+# the documentation of a scan finds the scan. Excused by path, and only for
+# the two rules that fire on it.
+[[allowlists]]
+description = "Quoted scanner output and example commands in the Session 17 write-up"
+targetRules = ["generic-api-key", "curl-auth-header"]
+paths = [
+  '''devops-class-main/DevSecOps/readme\.md''',
+]
