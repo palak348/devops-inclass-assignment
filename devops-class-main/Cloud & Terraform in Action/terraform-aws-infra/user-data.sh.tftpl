@@ -1,0 +1,35 @@
+#!/bin/bash
+# =============================================================================
+# EC2 bootstrap script
+#
+# Rendered by templatefile() in compute.tf. The $${...} placeholders are
+# substituted by Terraform before the script ever reaches the instance, so
+# the machine receives a finished script with no variables left in it.
+#
+# This runs ONCE, at first boot, as root.
+# =============================================================================
+set -euo pipefail
+
+exec > >(tee /var/log/bootstrap.log) 2>&1
+echo "=== bootstrap starting: $(date -Is) ==="
+
+echo "environment : ${environment}"
+echo "project     : ${name_prefix}"
+echo "bucket      : ${bucket_name}"
+
+# ---- packages ---------------------------------------------------------------
+yum update -y
+yum install -y nginx awscli
+
+# ---- fetch the asset from S3 ------------------------------------------------
+# No credentials anywhere in this script. The instance profile attached in
+# compute.tf lets the CLI get short-lived credentials from the metadata
+# service, which is the whole point of using a role instead of access keys.
+aws s3 cp "s3://${bucket_name}/assets/index.html" /usr/share/nginx/html/index.html \
+  --region "$(curl -s http://169.254.169.254/latest/meta-data/placement/region)"
+
+# ---- serve ------------------------------------------------------------------
+systemctl enable nginx
+systemctl start nginx
+
+echo "=== bootstrap complete: $(date -Is) ==="
