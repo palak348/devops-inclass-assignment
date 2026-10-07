@@ -116,6 +116,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # A container job checks the code out as a different uid than the one the
+      # container runs as, so git refuses to touch the directory ("dubious
+      # ownership"). Semgrep only scans files tracked by git, so that refusal
+      # breaks the scan rather than the checkout.
+      - name: Mark the workspace as a safe git directory
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
       - name: Run Semgrep (community ruleset + project rules)
         id: scan
         continue-on-error: true
@@ -136,6 +143,7 @@ jobs:
           else
             echo "status=fail" >> "$GITHUB_OUTPUT"
           fi
+          echo "::notice title=SAST verdict::semgrep outcome=${{ steps.scan.outcome }}"
           FOUND=$(grep -o '"check_id"' semgrep-report.json 2>/dev/null | wc -l || echo 0)
           echo "### SAST (Semgrep)" >> "$GITHUB_STEP_SUMMARY"
           echo "Findings: **$FOUND**" >> "$GITHUB_STEP_SUMMARY"
@@ -196,6 +204,7 @@ jobs:
           else
             echo "status=fail" >> "$GITHUB_OUTPUT"
           fi
+          echo "::notice title=SCA verdict::npm-audit=${{ steps.npmaudit.outcome }} trivy-fs=${{ steps.trivyfs.outcome }}"
           {
             echo "### SCA"
             echo "| Tool | Result |"
@@ -246,6 +255,7 @@ jobs:
       - name: Record verdict
         id: verdict
         run: |
+          echo "::notice title=Secret Scan verdict::gitleaks outcome=${{ steps.scan.outcome }}"
           if [ "${{ steps.scan.outcome }}" = "success" ]; then
             echo "status=pass" >> "$GITHUB_OUTPUT"
             echo "### Secret Scan: clean" >> "$GITHUB_STEP_SUMMARY"
@@ -345,6 +355,7 @@ jobs:
       - name: Record verdict
         id: verdict
         run: |
+          echo "::notice title=Image Scan verdict::trivy outcome=${{ steps.scan.outcome }}"
           if [ "${{ steps.scan.outcome }}" = "success" ]; then
             echo "status=pass" >> "$GITHUB_OUTPUT"
             echo "### Image Scan: no fixable HIGH/CRITICAL vulnerabilities" >> "$GITHUB_STEP_SUMMARY"
@@ -403,12 +414,15 @@ jobs:
             echo ""
           } >> "$GITHUB_STEP_SUMMARY"
 
+          echo "::notice title=Gate inputs::sast=$SAST sca=$SCA secrets=$SECRETS image=$IMAGE"
+
           if [ "$SAST" = "pass" ] && [ "$SCA" = "pass" ] && [ "$SECRETS" = "pass" ] && [ "$IMAGE" = "pass" ]; then
             echo "passed=true" >> "$GITHUB_OUTPUT"
             echo "**GATE PASSED** - the image may be published and deployed." >> "$GITHUB_STEP_SUMMARY"
           else
             echo "passed=false" >> "$GITHUB_OUTPUT"
             echo "**GATE FAILED** - the image will NOT be published or deployed." >> "$GITHUB_STEP_SUMMARY"
+            echo "::error title=Security Gate FAILED::sast=$SAST sca=$SCA secrets=$SECRETS image=$IMAGE"
             exit 1
           fi
 
