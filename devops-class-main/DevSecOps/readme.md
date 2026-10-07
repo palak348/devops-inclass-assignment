@@ -437,6 +437,25 @@ The gate writes its verdict table to the run summary:
 | Secret Scan | Gitleaks | `pass` |
 | Image Scan | Trivy image | `pass` |
 
+**The final run is green end to end.** Four runs were needed, and each red one
+was a real finding rather than noise (see *Issues Faced*, #8-#10):
+
+```
+1. Build                      -> success
+2. Unit Test                  -> success
+3. SAST (Semgrep)             -> success
+4. SCA (npm audit + Trivy fs) -> success
+5. Secret Scan (Gitleaks)     -> success
+6. Docker Build               -> success
+7. Container Image Scan       -> success
+8. Security Gate              -> success
+9. Push Image to GHCR         -> success
+10. Deploy to Kubernetes      -> success
+```
+
+Only now do jobs 9 and 10 run: the image reaches GHCR *after* it has been
+scanned, never before.
+
 ---
 
 ## Pipeline permissions
