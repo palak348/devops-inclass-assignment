@@ -1,0 +1,33 @@
+# =============================================================================
+# CONTAINER IMAGE / DEPENDENCY SCANNING CONFIG (Trivy)
+#
+# Trivy is used twice in the pipeline:
+#   1. SCA          - `trivy fs` over the source tree, reading package-lock.json
+#   2. Image scan   - `trivy image` over the built image, which also covers the
+#                     Alpine OS packages inside the base image
+# =============================================================================
+
+# Only these severities are reported. LOW/MEDIUM noise hides the findings that
+# actually matter.
+severity:
+  - HIGH
+  - CRITICAL
+
+# A vulnerability with no released fix cannot be acted on today, so it does not
+# block the pipeline. It is still printed, and it is still tracked - see the
+# weekly scheduled run in the workflow.
+vulnerability:
+  ignore-unfixed: true
+
+scan:
+  scanners:
+    - vuln
+    - secret        # Trivy also greps the image layers for leaked credentials
+    - misconfig
+
+# Exit non-zero when something matching the filter above is found. This is what
+# turns a report into a GATE.
+exit-code: 1
+
+# Keep CI logs readable.
+timeout: 10m

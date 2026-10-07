@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: session17
+  labels:
+    name: session17
+    purpose: devsecops-demo
+    # Pod Security Admission. `restricted` is the strictest built-in profile:
+    # it requires non-root, no privilege escalation, dropped capabilities and a
+    # seccomp profile. `enforce` REJECTS a non-compliant pod outright, so this
+    # single label is a security gate that lives in the cluster rather than in
+    # the pipeline - it still applies to anything applied by hand.
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/enforce-version: latest
+    pod-security.kubernetes.io/warn: restricted

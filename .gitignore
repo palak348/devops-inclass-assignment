@@ -1,1 +1,17 @@
 .DS_Store
+
+# Installed dependencies are rebuilt from package-lock.json; committing them
+# would also hand the secret scanner ~70 vendored packages to wade through.
+node_modules/
+
+# Scan reports are build output - they belong in the workflow artifacts, not
+# in git.
+npm-audit.json
+semgrep-report.json
+gitleaks-report.json
+trivy-image-report.json
+test-results.tap
+
+# Never commit real environment files.
+.env
+.env.*

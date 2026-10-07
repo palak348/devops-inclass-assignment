@@ -1,0 +1,91 @@
+# =============================================================================
+# SECRET SCANNING CONFIG (Gitleaks)
+#
+# Gitleaks walks the working tree AND the git history. That second part is the
+# point: deleting a leaked key in a later commit does not unleak it, because
+# the old commit still holds it and anyone who clones the repo gets it.
+# =============================================================================
+
+title = "DevSecOps demo - secret scanning policy"
+
+# Start from the ~170 built-in rules (AWS keys, GitHub PATs, private keys,
+# Slack tokens, ...) and add project-specific ones on top.
+[extend]
+useDefault = true
+
+# ---- project-specific rules -------------------------------------------------
+
+[[rules]]
+id = "kubernetes-secret-plaintext"
+description = "A literal password written into a Kubernetes manifest"
+regex = '''(?i)(password|passwd|token)\s*:\s*["']?[A-Za-z0-9!@#$%^&*_\-]{8,}["']?'''
+path = '''\.ya?ml$'''
+tags = ["kubernetes", "secret"]
+
+[[rules]]
+id = "dotenv-committed"
+description = "A .env file containing an assigned secret"
+# (?m) makes ^ and $ match at every line, not only at the start of the whole
+# file fragment gitleaks hands the rule.
+regex = '''(?im)^(API_TOKEN|DB_PASSWORD|SECRET_KEY)\s*=\s*\S{8,}$'''
+path = '''\.env'''
+tags = ["env", "secret"]
+
+# ---- allowlist --------------------------------------------------------------
+# Every entry here is a deliberate, reviewed exception. An allowlist that grows
+# without justification is how a scanner stops being useful.
+#
+# `regexTarget = "line"` matches against the WHOLE source line rather than just
+# the captured secret, which is what makes the placeholder entries below work.
+[[allowlists]]
+description = "Documented, non-sensitive values used by the demo and its tests"
+targetRules = ["kubernetes-secret-plaintext", "dotenv-committed", "generic-api-key"]
+regexTarget = "line"
+
+paths = [
+  '''package-lock\.json''',     # integrity hashes look like secrets, aren't
+  '''node_modules''',
+]
+
+regexes = [
+  # Placeholder tokens that exist only so the tests and the local demo can run.
+  # They grant access to nothing.
+  '''integration-test-token-value''',
+  '''a-sufficiently-long-token''',
+  '''local-demo-token-1234567890''',
+  # The Kubernetes Secret ships a CHANGE-ME placeholder on purpose; the real
+  # value is injected at deploy time from a GitHub Actions secret.
+  '''CHANGE-ME-IN-PRODUCTION''',
+]
+
+# A second allowlist, this time scoped by path only: the lockfile and vendored
+# dependencies are never a useful place to look for OUR secrets.
+[[allowlists]]
+description = "Generated and vendored files"
+paths = [
+  '''package-lock\.json''',
+  '''node_modules''',
+]
+
+# ---- allowlist: teaching placeholders from earlier sessions -----------------
+# The pipeline scans the WHOLE repository and its full git history, not just
+# this folder. That is deliberate - a leaked key stays in the history even
+# after the file is deleted, so a scan scoped to one directory would miss the
+# very thing secret scanning exists to find.
+#
+# Running it that way surfaced four hits in earlier coursework. Each one was
+# checked by hand and is a deliberately fake value written to demonstrate a
+# Kubernetes Secret or a Helm value; none of them unlocks anything. They are
+# excused here BY PATH, with the reason recorded, instead of being silenced by
+# weakening the rules.
+[[allowlists]]
+description = "Reviewed demo placeholders in Session 12 and Session 15 coursework"
+targetRules = ["kubernetes-secret-plaintext", "generic-api-key"]
+paths = [
+  # Session 15 Helm chart: `dbPassword: "changeme"` - the chart's own default,
+  # overridden by values-prod.yaml at install time.
+  '''devops-class-main/Helm/mini-project/guestbook/values\.yaml''',
+  # Session 12: a Secret manifest and the README that explains it, both using
+  # made-up values to show how `stringData` and base64 encoding work.
+  '''devops-class-main/Kubernetes Ingress, ConfigMaps & Secrets/.*''',
+]

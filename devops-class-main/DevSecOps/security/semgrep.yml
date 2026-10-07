@@ -1,0 +1,71 @@
+# =============================================================================
+# CUSTOM SAST RULES (Semgrep)
+#
+# The pipeline runs these ALONGSIDE the community ruleset `p/javascript`.
+# Registry rules catch the well-known classes of bug; these project rules
+# encode the decisions this codebase has made, so a future change that quietly
+# undoes one of them fails the build instead of passing review unnoticed.
+# =============================================================================
+rules:
+  - id: no-hardcoded-secret
+    message: >-
+      Hardcoded credential. Secrets must come from the environment, which in
+      Kubernetes is populated from a Secret object.
+    severity: ERROR
+    languages: [javascript]
+    pattern-either:
+      - pattern: const $NAME = "..."
+      - pattern: let $NAME = "..."
+    metavariable-regex:
+      metavariable: $NAME
+      regex: (?i).*(password|passwd|secret|api_?key|apitoken|api_?token|private_?key).*
+    paths:
+      exclude:
+        - tests/
+
+  - id: no-eval
+    message: >-
+      eval() / new Function() executes a string as code. If any part of that
+      string can be influenced by a request, this is remote code execution.
+    severity: ERROR
+    languages: [javascript]
+    pattern-either:
+      - pattern: eval(...)
+      - pattern: new Function(...)
+
+  - id: no-shell-injection
+    message: >-
+      child_process.exec() runs its argument through a shell. Use execFile()
+      with an argument array so user input can never become shell syntax.
+    severity: ERROR
+    languages: [javascript]
+    pattern-either:
+      - pattern: require("child_process").exec(...)
+      - pattern: $CP.exec(...)
+
+  - id: no-unescaped-render
+    message: >-
+      A request value is being written straight into an HTML response. Pass it
+      through notes.escapeHtml() first, or this is a stored/reflected XSS.
+    severity: WARNING
+    languages: [javascript]
+    pattern: $RES.send(`...${$REQ.params.$X}...`)
+
+  - id: no-timing-unsafe-token-compare
+    message: >-
+      Comparing a secret with === leaks its value through timing. Use
+      crypto.timingSafeEqual (wrapped here as auth.safeCompare).
+    severity: WARNING
+    languages: [javascript]
+    pattern-either:
+      - pattern: $TOKEN === process.env.$ENV
+      - pattern: process.env.$ENV === $TOKEN
+
+  - id: no-disabled-tls-verification
+    message: >-
+      Disabling TLS verification turns HTTPS into plaintext-with-extra-steps.
+    severity: ERROR
+    languages: [javascript]
+    pattern-either:
+      - pattern: "rejectUnauthorized: false"
+      - pattern: 'process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0"'

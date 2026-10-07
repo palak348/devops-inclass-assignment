@@ -1,0 +1,106 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: notes-api
+  namespace: session17
+  labels:
+    app: notes-api
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: notes-api
+  template:
+    metadata:
+      labels:
+        app: notes-api
+    spec:
+      # The pod does not talk to the Kubernetes API, so it has no business
+      # holding a mounted ServiceAccount token. If the container is ever
+      # compromised, there is simply no credential there to steal.
+      automountServiceAccountToken: false
+
+      # ---- POD-LEVEL SECURITY CONTEXT ------------------------------------
+      securityContext:
+        runAsNonRoot: true        # kubelet refuses to start a root container
+        runAsUser: 1000           # the `node` user baked into the image
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault    # blocks the dangerous syscalls by default
+
+      containers:
+        - name: notes-api
+          # Replaced by the pipeline with the exact digest/tag that was scanned.
+          image: ghcr.io/palak348/devsecops-notes:latest
+          imagePullPolicy: IfNotPresent
+
+          ports:
+            - name: http
+              containerPort: 3000
+
+          # ---- CONTAINER-LEVEL SECURITY CONTEXT ------------------------
+          securityContext:
+            allowPrivilegeEscalation: false   # no setuid route back to root
+            readOnlyRootFilesystem: true      # an attacker cannot drop a binary
+            capabilities:
+              drop: ["ALL"]                   # start from zero, add nothing
+
+          env:
+            - name: APP_VERSION
+              value: "1.0.0"
+            - name: PORT
+              value: "3000"
+            # The token is injected from the Secret. It never appears in the
+            # manifest, the image, or the pod spec in plain text.
+            - name: API_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: notes-api-secret
+                  key: api-token
+
+          # Limits are a security control, not just a scheduling hint: without
+          # them one compromised pod can starve every other pod on the node.
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 300m
+              memory: 192Mi
+
+          # Startup gate first, so a slow boot is never mistaken for a hang.
+          startupProbe:
+            httpGet:
+              path: /health
+              port: http
+            failureThreshold: 20
+            periodSeconds: 2
+
+          # Readiness checks /ready, which returns 503 when API_TOKEN is
+          # missing - a misconfigured pod is kept out of the Service.
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: http
+            periodSeconds: 5
+            failureThreshold: 3
+
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 10
+            failureThreshold: 3
+
+          # readOnlyRootFilesystem means the process cannot write anywhere, so
+          # give it one explicit scratch area in RAM.
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+
+      volumes:
+        - name: tmp
+          emptyDir:
+            medium: Memory
+            sizeLimit: 16Mi

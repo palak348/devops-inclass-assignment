@@ -1,0 +1,55 @@
+# =============================================================================
+# DEFAULT-DENY NETWORK POLICY
+#
+# Kubernetes networking is wide open by default: every pod can reach every
+# other pod in the cluster. These two policies invert that - deny everything,
+# then allow only what the service genuinely needs.
+#
+# NOTE: a NetworkPolicy object is inert unless the CNI plugin enforces it.
+# This cluster runs kindnet, whose network-policy agent DOES enforce it, and
+# the README records the proof: an outside pod can still reach port 3000, while
+# the notes-api pod can no longer open an outbound connection to the internet.
+# On a CNI with no policy support (plain bridge/ptp) the objects are stored but
+# nothing is filtered - there, start minikube with `--cni=calico` instead.
+# =============================================================================
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+  namespace: session17
+spec:
+  podSelector: {}           # an empty selector means EVERY pod in the namespace
+  policyTypes:
+    - Ingress
+    - Egress
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: notes-api-allow
+  namespace: session17
+spec:
+  podSelector:
+    matchLabels:
+      app: notes-api
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Allow HTTP in on the app port from anywhere (this is a public API, and
+    # NodePort traffic arrives from outside the cluster).
+    - ports:
+        - protocol: TCP
+          port: 3000
+  egress:
+    # DNS only. The service makes no outbound calls, so nothing else is needed
+    # - and an attacker inside the pod gets no route out to a C2 server.
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53

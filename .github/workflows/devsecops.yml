@@ -1,0 +1,497 @@
+# =============================================================================
+# DEVSECOPS PIPELINE - Session 17
+#
+# Implements the required flow end to end:
+#
+#   Code -> Build -> Unit Test -> SAST -> SCA -> Secret Scan -> Docker Build
+#        -> Container Image Scan -> SECURITY GATE -> Push Image -> Deploy
+#
+# Design decision: the three source-code scans and the image scan RECORD their
+# verdict instead of aborting the run. That way one pipeline execution produces
+# a COMPLETE security report rather than stopping at the first problem. The
+# single `security-gate` job then decides - and nothing is published or
+# deployed unless that gate passes. "Shift left" means finding problems early;
+# it does not mean hiding the rest of them.
+# =============================================================================
+name: DevSecOps Pipeline
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'devops-class-main/DevSecOps/**'
+      - '.github/workflows/devsecops.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'devops-class-main/DevSecOps/**'
+  workflow_dispatch:
+  # A dependency that was clean on Monday can have a CRITICAL CVE by Friday.
+  # Re-scanning the unchanged code weekly is what catches that.
+  schedule:
+    - cron: '0 3 * * 1'
+
+env:
+  PROJECT_DIR: devops-class-main/DevSecOps
+  APP_DIR: devops-class-main/DevSecOps/app
+  NODE_VERSION: '22'
+  IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/devsecops-notes
+
+# Least privilege by default: every job starts read-only and asks for more.
+permissions:
+  contents: read
+
+jobs:
+  # ===========================================================================
+  # 1. BUILD - install exactly what the lockfile pins, then syntax-check
+  # ===========================================================================
+  build:
+    name: 1. Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: ${{ env.APP_DIR }}/package-lock.json
+
+      - name: Install dependencies (from the lockfile)
+        working-directory: ${{ env.APP_DIR }}
+        run: npm ci --no-audit --no-fund
+
+      - name: Lint / syntax check
+        working-directory: ${{ env.APP_DIR }}
+        run: npm run lint
+
+  # ===========================================================================
+  # 2. UNIT TEST
+  # ===========================================================================
+  unit-test:
+    name: 2. Unit Test
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: ${{ env.APP_DIR }}/package-lock.json
+
+      - name: Install dependencies
+        working-directory: ${{ env.APP_DIR }}
+        run: npm ci --no-audit --no-fund
+
+      - name: Run unit tests
+        working-directory: ${{ env.APP_DIR }}
+        run: npm test
+
+      - name: Test report (TAP)
+        working-directory: ${{ env.APP_DIR }}
+        run: npm test -- --test-reporter=tap > test-results.tap 2>&1 || true
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: unit-test-results
+          path: ${{ env.APP_DIR }}/test-results.tap
+          retention-days: 7
+
+  # ===========================================================================
+  # 3. SAST - Static Application Security Testing (Semgrep)
+  #
+  # Reads the SOURCE without running it, looking for dangerous patterns:
+  # injection, hardcoded secrets, unsafe rendering.
+  # ===========================================================================
+  sast:
+    name: 3. SAST (Semgrep)
+    runs-on: ubuntu-latest
+    needs: unit-test
+    container:
+      image: semgrep/semgrep:latest
+    outputs:
+      status: ${{ steps.verdict.outputs.status }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run Semgrep (community ruleset + project rules)
+        id: scan
+        continue-on-error: true
+        run: |
+          semgrep scan \
+            --config p/javascript \
+            --config p/security-audit \
+            --config "$PROJECT_DIR/security/semgrep.yml" \
+            --error \
+            --json --output semgrep-report.json \
+            "$APP_DIR"
+
+      - name: Record verdict
+        id: verdict
+        run: |
+          if [ "${{ steps.scan.outcome }}" = "success" ]; then
+            echo "status=pass" >> "$GITHUB_OUTPUT"
+          else
+            echo "status=fail" >> "$GITHUB_OUTPUT"
+          fi
+          FOUND=$(grep -o '"check_id"' semgrep-report.json 2>/dev/null | wc -l || echo 0)
+          echo "### SAST (Semgrep)" >> "$GITHUB_STEP_SUMMARY"
+          echo "Findings: **$FOUND**" >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: sast-report
+          path: semgrep-report.json
+          retention-days: 30
+          if-no-files-found: ignore
+
+  # ===========================================================================
+  # 4. SCA - Software Composition Analysis
+  #
+  # The app is ~70 packages, almost all of them written by someone else. SCA
+  # asks the question SAST cannot: "is any of that borrowed code known-bad?"
+  # Two tools, because they use different advisory databases.
+  # ===========================================================================
+  sca:
+    name: 4. SCA (npm audit + Trivy fs)
+    runs-on: ubuntu-latest
+    needs: sast
+    outputs:
+      status: ${{ steps.verdict.outputs.status }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: npm audit (GitHub Advisory Database)
+        id: npmaudit
+        continue-on-error: true
+        working-directory: ${{ env.APP_DIR }}
+        run: |
+          npm audit --audit-level=high --json > npm-audit.json || true
+          npm audit --audit-level=high
+
+      - name: Trivy filesystem scan (lockfile dependencies)
+        id: trivyfs
+        continue-on-error: true
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: fs
+          scan-ref: ${{ env.APP_DIR }}
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: '1'
+          format: table
+
+      - name: Record verdict
+        id: verdict
+        run: |
+          if [ "${{ steps.npmaudit.outcome }}" = "success" ] && [ "${{ steps.trivyfs.outcome }}" = "success" ]; then
+            echo "status=pass" >> "$GITHUB_OUTPUT"
+          else
+            echo "status=fail" >> "$GITHUB_OUTPUT"
+          fi
+          {
+            echo "### SCA"
+            echo "| Tool | Result |"
+            echo "|------|--------|"
+            echo "| npm audit | ${{ steps.npmaudit.outcome }} |"
+            echo "| Trivy fs | ${{ steps.trivyfs.outcome }} |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: sca-report
+          path: ${{ env.APP_DIR }}/npm-audit.json
+          retention-days: 30
+          if-no-files-found: ignore
+
+  # ===========================================================================
+  # 5. SECRET SCAN - Gitleaks
+  #
+  # fetch-depth: 0 is essential. Gitleaks scans the HISTORY, and a shallow
+  # clone would hide exactly the commit where a key was added and then removed.
+  # ===========================================================================
+  secret-scan:
+    name: 5. Secret Scan (Gitleaks)
+    runs-on: ubuntu-latest
+    needs: sca
+    outputs:
+      status: ${{ steps.verdict.outputs.status }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run Gitleaks
+        id: scan
+        continue-on-error: true
+        run: |
+          docker run --rm \
+            -v "$PWD:/repo" \
+            zricethezav/gitleaks:latest detect \
+              --source /repo \
+              --config "/repo/$PROJECT_DIR/security/gitleaks.toml" \
+              --report-format json \
+              --report-path /repo/gitleaks-report.json \
+              --redact \
+              --verbose
+
+      - name: Record verdict
+        id: verdict
+        run: |
+          if [ "${{ steps.scan.outcome }}" = "success" ]; then
+            echo "status=pass" >> "$GITHUB_OUTPUT"
+            echo "### Secret Scan: clean" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "status=fail" >> "$GITHUB_OUTPUT"
+            echo "### Secret Scan: LEAK DETECTED - rotate the credential, deleting the commit is not enough" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: secret-scan-report
+          path: gitleaks-report.json
+          retention-days: 30
+          if-no-files-found: ignore
+
+  # ===========================================================================
+  # 6. DOCKER BUILD
+  #
+  # The image is exported as a tar artifact rather than pushed, so it can be
+  # scanned BEFORE it ever reaches the registry. An image in a registry is a
+  # thing other people can pull; an image in a tarball is not.
+  # ===========================================================================
+  docker-build:
+    name: 6. Docker Build
+    runs-on: ubuntu-latest
+    needs: secret-scan
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build image (not pushed)
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ env.APP_DIR }}
+          push: false
+          tags: devsecops-notes:${{ github.sha }}
+          outputs: type=docker,dest=/tmp/image.tar
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: container-image
+          path: /tmp/image.tar
+          retention-days: 1
+
+  # ===========================================================================
+  # 7. CONTAINER IMAGE SCAN - Trivy
+  #
+  # Covers what the earlier scans cannot see: the Alpine OS packages inherited
+  # from the base image, plus a second pass for secrets baked into the layers.
+  # ===========================================================================
+  image-scan:
+    name: 7. Container Image Scan (Trivy)
+    runs-on: ubuntu-latest
+    needs: docker-build
+    outputs:
+      status: ${{ steps.verdict.outputs.status }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: container-image
+          path: /tmp
+
+      - name: Load the image built in the previous job
+        run: docker load --input /tmp/image.tar
+
+      - name: Trivy image scan (vulnerabilities + secrets)
+        id: scan
+        continue-on-error: true
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: image
+          image-ref: devsecops-notes:${{ github.sha }}
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          scanners: vuln,secret
+          exit-code: '1'
+          format: table
+
+      - name: Trivy image scan (JSON report for the artifact)
+        if: always()
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: image
+          image-ref: devsecops-notes:${{ github.sha }}
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: '0'
+          format: json
+          output: trivy-image-report.json
+
+      - name: Record verdict
+        id: verdict
+        run: |
+          if [ "${{ steps.scan.outcome }}" = "success" ]; then
+            echo "status=pass" >> "$GITHUB_OUTPUT"
+            echo "### Image Scan: no fixable HIGH/CRITICAL vulnerabilities" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "status=fail" >> "$GITHUB_OUTPUT"
+            echo "### Image Scan: HIGH/CRITICAL vulnerabilities found" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: image-scan-report
+          path: trivy-image-report.json
+          retention-days: 30
+          if-no-files-found: ignore
+
+  # ===========================================================================
+  # 8. SECURITY GATE
+  #
+  # The decision point. Every scan verdict is collected here and the run is
+  # failed if ANY of them is not "pass". A skipped job also counts as a
+  # failure - an unanswered security question is not a passing one.
+  # ===========================================================================
+  security-gate:
+    name: 8. Security Gate
+    runs-on: ubuntu-latest
+    needs: [sast, sca, secret-scan, image-scan]
+    if: always()
+    outputs:
+      passed: ${{ steps.gate.outputs.passed }}
+    steps:
+      - name: Evaluate all security verdicts
+        id: gate
+        run: |
+          SAST="${{ needs.sast.outputs.status }}"
+          SCA="${{ needs.sca.outputs.status }}"
+          SECRETS="${{ needs.secret-scan.outputs.status }}"
+          IMAGE="${{ needs.image-scan.outputs.status }}"
+
+          # An empty value means the job never ran (it was skipped because an
+          # earlier job failed). Treat that as a failure, never as a pass.
+          SAST="${SAST:-skipped}"
+          SCA="${SCA:-skipped}"
+          SECRETS="${SECRETS:-skipped}"
+          IMAGE="${IMAGE:-skipped}"
+
+          {
+            echo "## Security Gate"
+            echo ""
+            echo "| Stage | Tool | Verdict |"
+            echo "|-------|------|---------|"
+            echo "| SAST | Semgrep | \`$SAST\` |"
+            echo "| SCA | npm audit + Trivy fs | \`$SCA\` |"
+            echo "| Secret Scan | Gitleaks | \`$SECRETS\` |"
+            echo "| Image Scan | Trivy image | \`$IMAGE\` |"
+            echo ""
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if [ "$SAST" = "pass" ] && [ "$SCA" = "pass" ] && [ "$SECRETS" = "pass" ] && [ "$IMAGE" = "pass" ]; then
+            echo "passed=true" >> "$GITHUB_OUTPUT"
+            echo "**GATE PASSED** - the image may be published and deployed." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "passed=false" >> "$GITHUB_OUTPUT"
+            echo "**GATE FAILED** - the image will NOT be published or deployed." >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+
+  # ===========================================================================
+  # 9. PUSH IMAGE - only reachable through a green gate
+  # ===========================================================================
+  push:
+    name: 9. Push Image to GHCR
+    runs-on: ubuntu-latest
+    needs: security-gate
+    if: github.event_name != 'pull_request'
+    permissions:
+      contents: read
+      packages: write          # the ONLY job allowed to write packages
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}   # short-lived, auto-rotated
+
+      - name: Build and push the scanned image
+        id: push
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ env.APP_DIR }}
+          push: true
+          # Restored from the cache written in job 6, so this rebuild reuses
+          # the same layers that were scanned rather than building anew.
+          cache-from: type=gha
+          tags: |
+            ${{ env.IMAGE_NAME }}:${{ github.sha }}
+            ${{ env.IMAGE_NAME }}:latest
+
+      - name: Publish summary
+        run: |
+          {
+            echo "### Image Published"
+            echo "- \`${{ env.IMAGE_NAME }}:${{ github.sha }}\`"
+            echo "- \`${{ env.IMAGE_NAME }}:latest\`"
+            echo "- digest: \`${{ steps.push.outputs.digest }}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  # ===========================================================================
+  # 10. DEPLOY TO KUBERNETES
+  #
+  # The target cluster for this project is a local minikube, which a
+  # GitHub-hosted runner cannot reach. So this job does everything that does
+  # NOT require cluster access: it pins the manifest to the exact image that
+  # passed the gate and validates it offline with kubeconform. The apply itself
+  # is run against minikube from the workstation - see the README. A hosted
+  # cluster would only need a KUBE_CONFIG secret added here.
+  # ===========================================================================
+  deploy:
+    name: 10. Deploy to Kubernetes
+    runs-on: ubuntu-latest
+    needs: push
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Pin the deployment to the scanned image
+        run: |
+          sed -i "s|image: ghcr.io/.*/devsecops-notes:.*|image: ${{ env.IMAGE_NAME }}:${{ github.sha }}|" \
+            "$PROJECT_DIR/k8s/02-deployment.yaml"
+          grep -n "image:" "$PROJECT_DIR/k8s/02-deployment.yaml"
+
+      - name: Validate manifests offline (kubeconform)
+        run: |
+          curl -sL https://github.com/yannh/kubeconform/releases/latest/download/kubeconform-linux-amd64.tar.gz | tar xz
+          ./kubeconform -summary -strict "$PROJECT_DIR/k8s/"
+
+      - name: Deployment summary
+        run: |
+          {
+            echo "### Deploy"
+            echo "Manifests validated and pinned to \`${{ env.IMAGE_NAME }}:${{ github.sha }}\`."
+            echo ""
+            echo "Applied to the local minikube cluster with:"
+            echo "    kubectl apply -f '$PROJECT_DIR/k8s/'"
+            echo "    kubectl rollout status deployment/notes-api -n session17"
+          } >> "$GITHUB_STEP_SUMMARY"

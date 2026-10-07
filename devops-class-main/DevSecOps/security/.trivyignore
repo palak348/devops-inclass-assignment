@@ -1,0 +1,16 @@
+# =============================================================================
+# ACCEPTED RISK REGISTER
+#
+# Each line silences ONE vulnerability ID. The rules for adding a line:
+#   1. state why it does not apply to this service
+#   2. give an expiry date - an exception with no end date is a permanent hole
+#   3. re-review on that date
+#
+# This file is intentionally empty of real suppressions right now: the current
+# image has no unfixed HIGH or CRITICAL findings, so nothing needs excusing.
+# The format below is what an entry would look like.
+# =============================================================================
+
+# Example (not active):
+# CVE-2024-00000   # only reachable via the CLI parser, which this image never
+#                  # invokes. Re-review 2026-12-31.

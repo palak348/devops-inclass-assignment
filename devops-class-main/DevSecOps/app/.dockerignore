@@ -1,0 +1,19 @@
+# node_modules is rebuilt inside the image from the lockfile, so sending the
+# host copy would only slow the build down and risk shipping Windows binaries.
+node_modules
+npm-debug.log
+
+# Never let git history or local secrets into the build context.
+.git
+.gitignore
+.env
+*.key
+*.pem
+
+# Documentation and CI config are not needed to run the service.
+*.md
+.github
+coverage
+
+# NOTE: tests/ is deliberately NOT ignored - the test stage needs it. It still
+# never reaches the runtime image, because that stage simply does not copy it.

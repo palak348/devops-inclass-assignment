@@ -1,0 +1,18 @@
+{
+  "name": "devsecops-notes-api",
+  "version": "1.0.0",
+  "description": "Secure notes API used to demonstrate a CI/CD + DevSecOps pipeline (Session 17)",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "test": "node --test",
+    "lint": "node --check src/server.js && node --check src/notes.js && node --check src/auth.js",
+    "audit": "npm audit --audit-level=high"
+  },
+  "dependencies": {
+    "express": "4.22.3"
+  },
+  "keywords": ["devsecops", "sast", "sca", "security", "github-actions"],
+  "author": "Palak Agrawal",
+  "license": "MIT"
+}
