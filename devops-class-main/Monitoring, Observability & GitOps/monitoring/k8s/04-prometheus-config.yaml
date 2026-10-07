@@ -1,0 +1,204 @@
+# =============================================================================
+# Prometheus configuration and alerting rules, as a ConfigMap.
+#
+# Two files are mounted into the Prometheus pod from here:
+#   prometheus.yml  - what to scrape
+#   alerts.yml      - what is worth waking someone for
+# =============================================================================
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-config
+  namespace: session20
+data:
+  prometheus.yml: |
+    global:
+      # How often to scrape. 15s is the usual default: frequent enough to see
+      # a spike, infrequent enough not to be the load itself.
+      scrape_interval: 15s
+      evaluation_interval: 15s
+      external_labels:
+        cluster: minikube
+        session: "20"
+
+    rule_files:
+      - /etc/prometheus/rules/alerts.yml
+
+    scrape_configs:
+      # ---- Prometheus scraping itself ---------------------------------------
+      # Always worth having: if this target is down, nothing else can be
+      # trusted either.
+      - job_name: prometheus
+        static_configs:
+          - targets: ["localhost:9090"]
+
+      # ---- the demo application ---------------------------------------------
+      # Service discovery rather than a static list. Prometheus asks the API
+      # for every pod, then the relabel rules decide which to keep. Scale the
+      # Deployment to 5 and all 5 are scraped, with no config change.
+      - job_name: demo-app
+        kubernetes_sd_configs:
+          - role: pod
+            namespaces:
+              names: [session20]
+
+        relabel_configs:
+          # Keep only pods that asked to be scraped.
+          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+            action: keep
+            regex: "true"
+
+          # Use the path the pod declared, if it declared one.
+          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+            action: replace
+            target_label: __metrics_path__
+            regex: (.+)
+
+          # Rewrite the scrape address to use the port the pod declared.
+          - source_labels: [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
+            action: replace
+            regex: ([^:]+)(?::\d+)?;(\d+)
+            replacement: $1:$2
+            target_label: __address__
+
+          # Carry the Kubernetes identity through as labels, so a query can
+          # group by pod or namespace. Without this every series looks the
+          # same and "which pod?" is unanswerable.
+          - source_labels: [__meta_kubernetes_namespace]
+            target_label: namespace
+          - source_labels: [__meta_kubernetes_pod_name]
+            target_label: pod
+          - source_labels: [__meta_kubernetes_pod_label_app]
+            target_label: app
+
+      # ---- the kubelet's own metrics ----------------------------------------
+      # cAdvisor lives inside the kubelet and reports per-container CPU,
+      # memory, filesystem and network - the data behind `kubectl top`.
+      - job_name: kubernetes-cadvisor
+        scheme: https
+        tls_config:
+          ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+          insecure_skip_verify: true
+        bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+
+        kubernetes_sd_configs:
+          - role: node
+
+        relabel_configs:
+          - action: labelmap
+            regex: __meta_kubernetes_node_label_(.+)
+          - target_label: __address__
+            replacement: kubernetes.default.svc:443
+          - source_labels: [__meta_kubernetes_node_name]
+            regex: (.+)
+            target_label: __metrics_path__
+            replacement: /api/v1/nodes/$1/proxy/metrics/cadvisor
+
+  alerts.yml: |
+    groups:
+      # =======================================================================
+      # Alerts are written against SYMPTOMS a user can feel, not causes.
+      #
+      # "CPU is high" is a cause and is usually fine - a busy server is doing
+      # its job. "Requests are failing" is a symptom and always matters. An
+      # alert that fires when nothing is wrong trains people to ignore alerts,
+      # and that is how the one that mattered gets missed.
+      # =======================================================================
+      - name: application
+        rules:
+          # `up` is synthesised by Prometheus for every target: 1 if the last
+          # scrape succeeded, 0 if it failed. `for: 1m` means it must stay down
+          # for a full minute - a single missed scrape during a rolling update
+          # should not page anyone.
+          - alert: AppDown
+            expr: up{job="demo-app"} == 0
+            for: 1m
+            labels:
+              severity: critical
+            annotations:
+              summary: "demo-app instance {{ $labels.pod }} is not responding"
+              description: "Prometheus has failed to scrape {{ $labels.pod }} for over a minute. The pod is gone, crashed, or not listening."
+
+          - alert: NoAppInstances
+            expr: absent(up{job="demo-app"}) or sum(up{job="demo-app"}) == 0
+            for: 1m
+            labels:
+              severity: critical
+            annotations:
+              summary: "No demo-app instances are up at all"
+              description: "Every instance is down, or service discovery has stopped finding any. This is a full outage."
+
+          # Error RATE, not error count. One 500 is noise; 10% of requests
+          # failing is an incident. The `or vector(0)` keeps the expression
+          # defined when no requests have been served yet.
+          - alert: HighErrorRate
+            expr: |
+              (
+                sum(rate(app_requests_total{status=~"5.."}[2m]))
+                /
+                clamp_min(sum(rate(app_requests_total[2m])), 0.001)
+              ) > 0.10
+            for: 2m
+            labels:
+              severity: warning
+            annotations:
+              summary: "Over 10% of requests are failing"
+              description: "5xx responses are {{ $value | humanizePercentage }} of all traffic over the last 2 minutes."
+
+          # Latency measured at p95 from the histogram. The average would hide
+          # this: 95% fast and 5% terrible averages out to "fine".
+          - alert: HighLatencyP95
+            expr: |
+              histogram_quantile(
+                0.95,
+                sum(rate(app_request_duration_seconds_bucket[5m])) by (le)
+              ) > 1
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: "p95 latency is above 1 second"
+              description: "95th percentile request duration is {{ $value }}s. One request in twenty is this slow or worse."
+
+          # Readiness reported by the app itself, independent of the kubelet's
+          # probe. Disagreement between the two is itself informative.
+          - alert: AppNotReady
+            expr: app_ready == 0
+            for: 2m
+            labels:
+              severity: warning
+            annotations:
+              summary: "{{ $labels.pod }} is reporting itself not ready"
+              description: "The pod is running but has taken itself out of rotation."
+
+      - name: resources
+        rules:
+          # Memory against the container's LIMIT, because that is the number
+          # that gets the container OOM-killed. Measuring against the node's
+          # total would be meaningless here.
+          - alert: ContainerMemoryHigh
+            expr: |
+              (
+                container_memory_working_set_bytes{namespace="session20", container="demo-app"}
+                /
+                container_spec_memory_limit_bytes{namespace="session20", container="demo-app"}
+              ) > 0.85
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: "{{ $labels.pod }} is using over 85% of its memory limit"
+              description: "Working set is {{ $value | humanizePercentage }} of the limit. At 100% the container is OOM-killed."
+
+          # Throttling, not utilisation. A container pinned at its CPU limit is
+          # being actively slowed down by the kernel - that is a real symptom,
+          # where "CPU is at 80%" is not.
+          - alert: ContainerCPUThrottling
+            expr: |
+              rate(container_cpu_cfs_throttled_seconds_total{namespace="session20", container="demo-app"}[5m]) > 1
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: "{{ $labels.pod }} is being CPU throttled"
+              description: "The container is hitting its CPU limit and the kernel is throttling it. Requests will be slow."

@@ -1,0 +1,12 @@
+{
+  "name": "monitoring-demo",
+  "version": "1.0.0",
+  "description": "Demo app for Session 20 - exposes Prometheus metrics, health and readiness endpoints",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "lint": "node --check server.js"
+  },
+  "author": "Palak Agrawal",
+  "license": "MIT"
+}

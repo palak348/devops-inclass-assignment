@@ -1,0 +1,83 @@
+# =============================================================================
+# The desired state of the demo application, as it lives in Git.
+#
+# This file is the SOURCE OF TRUTH. Nothing here is ever applied by hand -
+# Argo CD reads this from the repository and makes the cluster match it. If
+# someone edits the live Deployment with kubectl, Argo sees the difference and
+# puts it back.
+#
+# That is the whole idea: the way to change production is to change this file.
+# =============================================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: guestbook
+  labels:
+    app: guestbook
+    managed-by: argocd
+spec:
+  replicas: 4
+  selector:
+    matchLabels:
+      app: guestbook
+  template:
+    metadata:
+      labels:
+        app: guestbook
+    spec:
+      containers:
+        - name: guestbook
+          image: monitoring-demo:1.0.0
+          imagePullPolicy: IfNotPresent
+
+          ports:
+            - name: http
+              containerPort: 3000
+
+          env:
+            - name: APP_VERSION
+              value: "gitops-v2"
+
+          resources:
+            requests:
+              cpu: 25m
+              memory: 32Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: http
+            periodSeconds: 5
+
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 10
+
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: guestbook
+  labels:
+    app: guestbook
+    managed-by: argocd
+spec:
+  type: ClusterIP
+  selector:
+    app: guestbook
+  ports:
+    - name: http
+      port: 80
+      targetPort: 3000

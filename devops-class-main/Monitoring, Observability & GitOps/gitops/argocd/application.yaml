@@ -1,0 +1,60 @@
+# =============================================================================
+# The Argo CD Application.
+#
+# This is the object that makes GitOps happen: it points at a Git repository
+# and a namespace, and says "keep these two in agreement, forever".
+#
+# Note what it does NOT contain: any description of the guestbook Deployment.
+# Argo does not need to be told what the app looks like - that is in Git. This
+# object only says WHERE to look and HOW hard to insist.
+#
+# The Application itself is also a Kubernetes manifest living in Git, which is
+# the "app of apps" idea: even the thing that does the deploying is declared
+# declaratively.
+# =============================================================================
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: guestbook
+  namespace: argocd
+  finalizers:
+    # Without this, deleting the Application leaves its resources orphaned in
+    # the cluster. With it, Argo cleans up what it created.
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+
+  # ---- WHERE the desired state lives --------------------------------------
+  source:
+    repoURL: http://gitea-http.gitops.svc.cluster.local:3000/palak/gitops-demo.git
+    targetRevision: HEAD
+    path: apps
+
+  # ---- WHERE it should be applied -----------------------------------------
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: gitops-demo
+
+  # ---- HOW to keep them in agreement --------------------------------------
+  syncPolicy:
+    automated:
+      # prune: delete resources that have been removed from Git. Without it,
+      # deleting a file leaves the object running forever - Git stops being
+      # the source of truth the moment something can only be added, never
+      # removed.
+      prune: true
+
+      # selfHeal: revert manual changes made directly to the cluster. This is
+      # continuous reconciliation in one flag - `kubectl scale` becomes a
+      # change that lasts seconds before being undone.
+      selfHeal: true
+
+    syncOptions:
+      - CreateNamespace=true
+
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m

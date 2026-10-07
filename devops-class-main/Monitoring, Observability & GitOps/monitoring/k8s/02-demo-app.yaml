@@ -1,0 +1,109 @@
+# =============================================================================
+# The application being monitored.
+#
+# Three things here exist specifically so there is something to observe:
+#   - resource requests/limits, so "CPU utilisation" has a denominator
+#   - all three probes, so application health is a real signal
+#   - the prometheus.io/* annotations, so Prometheus discovers it by itself
+# =============================================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: demo-app
+  namespace: session20
+  labels:
+    app: demo-app
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: demo-app
+  template:
+    metadata:
+      labels:
+        app: demo-app
+      annotations:
+        # Prometheus' kubernetes_sd discovers every pod in the cluster and then
+        # KEEPS only the ones carrying these annotations. The app declares that
+        # it wants to be scraped; nobody edits Prometheus' config to add it.
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "3000"
+        prometheus.io/path: "/metrics"
+    spec:
+      containers:
+        - name: demo-app
+          image: monitoring-demo:1.0.0
+          imagePullPolicy: IfNotPresent
+
+          ports:
+            - name: http
+              containerPort: 3000
+
+          env:
+            - name: APP_VERSION
+              value: "1.0.0"
+
+          # Requests are what the scheduler reserves and what "CPU utilisation"
+          # is measured against. Without them, utilisation has no denominator
+          # and the HPA has nothing to work from.
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 300m
+              memory: 128Mi
+
+          # --- the three probes ------------------------------------------
+          # startup: gives a slow boot room to finish without liveness killing
+          # it. While this is failing, the other two are not evaluated at all.
+          startupProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 2
+            failureThreshold: 15
+
+          # readiness: can it serve traffic right now? Failing removes the pod
+          # from the Service endpoints. It does NOT restart anything.
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: http
+            periodSeconds: 5
+            failureThreshold: 2
+
+          # liveness: is it wedged beyond recovery? Failing KILLS the
+          # container. The thresholds are deliberately slacker than readiness -
+          # restarting should be the last resort, not the first.
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 10
+            failureThreshold: 3
+
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: demo-app
+  namespace: session20
+  labels:
+    app: demo-app
+spec:
+  type: NodePort
+  selector:
+    app: demo-app
+  ports:
+    - name: http
+      port: 80
+      targetPort: 3000
+      nodePort: 30200

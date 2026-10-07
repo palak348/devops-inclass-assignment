@@ -1,0 +1,57 @@
+# =============================================================================
+# RBAC for Prometheus.
+#
+# Prometheus discovers what to scrape by ASKING THE KUBERNETES API what exists.
+# That requires read access to pods, services, endpoints and nodes - which is
+# why a monitoring system needs cluster-wide permissions even though it never
+# changes anything.
+#
+# Note every verb below is read-only. Prometheus has no business creating or
+# deleting anything, and least privilege means the role says so.
+# =============================================================================
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: prometheus
+  namespace: session20
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: session20-prometheus
+rules:
+  - apiGroups: [""]
+    resources:
+      - nodes
+      - nodes/metrics
+      # nodes/proxy is what permits GET on
+      # /api/v1/nodes/<node>/proxy/metrics/cadvisor. nodes/metrics is a
+      # DIFFERENT subresource and does not grant it - scraping cAdvisor through
+      # the API server returns 403 without this line.
+      - nodes/proxy
+      - services
+      - endpoints
+      - pods
+    verbs: ["get", "list", "watch"]
+
+  - apiGroups: [""]
+    resources:
+      - configmaps
+    verbs: ["get"]
+
+  # Not an API group - the raw metrics endpoints on the kubelet.
+  - nonResourceURLs: ["/metrics", "/metrics/cadvisor"]
+    verbs: ["get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: session20-prometheus
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: session20-prometheus
+subjects:
+  - kind: ServiceAccount
+    name: prometheus
+    namespace: session20

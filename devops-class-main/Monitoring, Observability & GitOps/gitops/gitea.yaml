@@ -1,0 +1,118 @@
+# =============================================================================
+# Gitea - a Git server, running inside the cluster.
+#
+# WHY this exists:
+#
+# GitOps means a Git repository is the source of truth. To demonstrate the
+# whole loop - commit a change, watch the cluster follow - the demo needs a
+# repository Argo CD can reach AND that can be committed to freely.
+#
+# Running the Git server in the cluster makes the demo self-contained: no
+# GitHub account, no credentials, no network dependency, and the full
+# commit -> reconcile cycle is demonstrable rather than just described.
+#
+# In production the repository would of course be GitHub, GitLab or similar.
+# Nothing about the Argo CD configuration changes - only the repoURL.
+# =============================================================================
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: gitops
+  labels:
+    session: "20"
+    purpose: gitops
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gitea
+  namespace: gitops
+  labels:
+    app: gitea
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: gitea
+  template:
+    metadata:
+      labels:
+        app: gitea
+    spec:
+      containers:
+        - name: gitea
+          image: gitea/gitea:1.22-rootless
+          imagePullPolicy: IfNotPresent
+
+          env:
+            # Install-wizard values, supplied up front so the server comes up
+            # ready instead of waiting on a browser form.
+            - name: GITEA__database__DB_TYPE
+              value: sqlite3
+            - name: GITEA__server__ROOT_URL
+              value: http://gitea-http.gitops.svc.cluster.local:3000/
+            - name: GITEA__server__DOMAIN
+              value: gitea-http.gitops.svc.cluster.local
+            - name: GITEA__security__INSTALL_LOCK
+              value: "true"
+            # This is a throwaway demo server reachable only inside the
+            # cluster, holding one public repository of Kubernetes manifests.
+            - name: GITEA__service__DISABLE_REGISTRATION
+              value: "false"
+            - name: GITEA__repository__DEFAULT_BRANCH
+              value: main
+
+          ports:
+            - name: http
+              containerPort: 3000
+            - name: ssh
+              containerPort: 2222
+
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 1000m
+              memory: 1Gi
+
+          readinessProbe:
+            httpGet:
+              path: /api/healthz
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            failureThreshold: 30
+
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/gitea
+            - name: config
+              mountPath: /etc/gitea
+
+      volumes:
+        # emptyDir: the repository does not need to survive a pod restart for
+        # this demo. A real Git server gets a PersistentVolume.
+        - name: data
+          emptyDir: {}
+        - name: config
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: gitea-http
+  namespace: gitops
+  labels:
+    app: gitea
+spec:
+  type: NodePort
+  selector:
+    app: gitea
+  ports:
+    - name: http
+      port: 3000
+      targetPort: 3000
+      nodePort: 30300
