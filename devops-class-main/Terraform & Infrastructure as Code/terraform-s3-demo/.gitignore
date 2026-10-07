@@ -1,0 +1,25 @@
+# Terraform state holds every attribute of every resource, in plaintext -
+# including anything a provider marks sensitive. It is never committed.
+*.tfstate
+*.tfstate.*
+*.tfstate.backup
+
+# Downloaded provider binaries. Hundreds of megabytes, reproducible from
+# the lock file by `terraform init`.
+.terraform/
+
+# Crash logs and local overrides.
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Saved plan files are binary and can contain variable values.
+*.tfplan
+tfplan
+
+# Any tfvars other than the committed, secret-free terraform.tfvars.
+*.auto.tfvars
+secret.tfvars
