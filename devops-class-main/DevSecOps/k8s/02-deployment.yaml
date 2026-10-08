@@ -32,7 +32,7 @@ spec:
       containers:
         - name: notes-api
           # Replaced by the pipeline with the exact digest/tag that was scanned.
-          image: ghcr.io/palak348/devsecops-notes:latest
+          image: ghcr.io/palak348/devops-inclass-assignment/devsecops-notes:latest
           imagePullPolicy: IfNotPresent
 
           ports:

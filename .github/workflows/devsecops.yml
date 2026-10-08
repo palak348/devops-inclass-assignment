@@ -35,7 +35,7 @@ env:
   PROJECT_DIR: devops-class-main/DevSecOps
   APP_DIR: devops-class-main/DevSecOps/app
   NODE_VERSION: '22'
-  IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/devsecops-notes
+  IMAGE_NAME: ghcr.io/${{ github.repository }}/devsecops-notes
 
 # Least privilege by default: every job starts read-only and asks for more.
 permissions:

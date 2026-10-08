@@ -72,8 +72,8 @@ jobs:
           push: true
           # Lowercase the repository name - GHCR rejects uppercase paths.
           tags: |
-            ${{ env.REGISTRY }}/${{ github.repository_owner }}/cicd-demo:${{ steps.meta.outputs.tag }}
-            ${{ env.REGISTRY }}/${{ github.repository_owner }}/cicd-demo:latest
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.tag }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -94,7 +94,7 @@ jobs:
 
       - name: Update manifest with the new image tag
         run: |
-          IMAGE="${{ env.REGISTRY }}/${{ github.repository_owner }}/cicd-demo:${{ needs.publish.outputs.image-tag }}"
+          IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.publish.outputs.image-tag }}"
           MANIFEST="devops-class-main/CI-CD & GitHub Actions/k8s/deployment.yaml"
           sed -i "s|image: ghcr.io/.*cicd-demo:.*|image: $IMAGE|" "$MANIFEST"
           echo "Rendered manifest image line:"
@@ -123,6 +123,6 @@ jobs:
         run: |
           echo "## CD Pipeline Result" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Image published: \`${{ env.REGISTRY }}/${{ github.repository_owner }}/cicd-demo:${{ needs.publish.outputs.image-tag }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "Image published: \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.publish.outputs.image-tag }}\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "Manifests validated with \`kubectl apply --dry-run=client\`." >> $GITHUB_STEP_SUMMARY
