@@ -9,6 +9,8 @@ class Settings(BaseSettings):
     # No password is baked in here: DATABASE_URL must come from the environment
     # (docker compose .env, Kubernetes Secret, or the CI service container).
     database_url: str = "sqlite:///./careslot-dev.db"
+    # Timestamps are stored in UTC; "today" and date filters use the clinic's local day.
+    clinic_timezone: str = "Asia/Kolkata"
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 

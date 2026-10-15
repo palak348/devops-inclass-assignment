@@ -24,3 +24,10 @@ def test_stats_counts_by_status_and_busiest_doctor(client, doctor, patient):
     assert body["by_status"]["SCHEDULED"] == 2
     assert body["by_status"]["CANCELLED"] == 1
     assert body["busiest_doctor"] == doctor["name"]
+
+
+def test_stats_separates_active_doctors(client, doctor):
+    client.post("/api/doctors", json={"name": "Dr. Away", "specialty": "Cardiology", "active": False})
+    body = client.get("/api/stats").json()
+    assert body["doctors"] == 2
+    assert body["active_doctors"] == 1

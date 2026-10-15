@@ -95,3 +95,63 @@ def test_delete_appointment_then_404(client, appointment):
     assert client.delete(f"/api/appointments/{appointment['id']}").status_code == 204
     assert client.get(f"/api/appointments/{appointment['id']}").status_code == 404
     assert client.delete(f"/api/appointments/{appointment['id']}").status_code == 404
+
+
+# ---------- booking rules ----------
+def book(client, doctor_id, patient_id, when, minutes=15):
+    return client.post(
+        "/api/appointments",
+        json={"doctor_id": doctor_id, "patient_id": patient_id, "scheduled_at": when, "duration_min": minutes},
+    )
+
+
+def test_booking_in_the_past_is_rejected(client, doctor, patient):
+    response = book(client, doctor["id"], patient["id"], "2020-01-01T10:00:00Z")
+    assert response.status_code == 400
+    assert "past" in response.json()["detail"]
+
+
+def test_patient_cannot_be_in_two_places_at_once(client, appointment, patient):
+    other_doctor = client.post("/api/doctors", json={"name": "Dr. Second", "specialty": "Cardiology"}).json()
+    # Same patient, different doctor, overlapping 10:00-10:30.
+    response = book(client, other_doctor["id"], patient["id"], "2030-01-15T10:20:00Z")
+    assert response.status_code == 409
+    assert patient["name"] in response.json()["detail"]
+
+
+def test_scheduled_cannot_jump_straight_to_completed(client, appointment):
+    response = client.patch(f"/api/appointments/{appointment['id']}/status", json={"status": "COMPLETED"})
+    assert response.status_code == 409
+    assert "CHECKED_IN" in response.json()["detail"]
+
+
+def test_put_cannot_change_status(client, appointment):
+    response = client.put(f"/api/appointments/{appointment['id']}", json={"status": "COMPLETED"})
+    assert response.status_code == 422  # unknown field: status only changes via PATCH /status
+
+
+def test_finished_appointment_cannot_be_rescheduled(client, appointment):
+    client.patch(f"/api/appointments/{appointment['id']}/status", json={"status": "CANCELLED"})
+    response = client.put(f"/api/appointments/{appointment['id']}", json={"reason": "changed"})
+    assert response.status_code == 409
+
+
+def test_reschedule_into_a_clash_is_rejected(client, appointment, doctor, patient):
+    other_patient = client.post("/api/patients", json={"name": "Second Patient", "phone": "9000000001"}).json()
+    second = book(client, doctor["id"], other_patient["id"], "2030-01-15T11:00:00Z").json()
+    response = client.put(f"/api/appointments/{second['id']}", json={"scheduled_at": "2030-01-15T10:10:00Z"})
+    assert response.status_code == 409
+
+
+def test_on_date_uses_the_clinic_local_day(client, doctor, patient):
+    # 20:00 UTC on the 15th is 01:30 on the 16th in India (UTC+5:30).
+    book(client, doctor["id"], patient["id"], "2030-01-15T20:00:00Z")
+    assert len(client.get("/api/appointments", params={"on_date": "2030-01-16"}).json()) == 1
+    assert client.get("/api/appointments", params={"on_date": "2030-01-15"}).json() == []
+
+
+def test_upcoming_lists_only_active_future_appointments(client, appointment, doctor, patient):
+    cancelled = book(client, doctor["id"], patient["id"], "2030-01-15T12:00:00Z").json()
+    client.patch(f"/api/appointments/{cancelled['id']}/status", json={"status": "CANCELLED"})
+    upcoming = client.get("/api/appointments", params={"upcoming": True}).json()
+    assert [a["id"] for a in upcoming] == [appointment["id"]]

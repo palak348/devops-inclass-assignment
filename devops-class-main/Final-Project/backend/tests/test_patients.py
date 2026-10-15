@@ -44,3 +44,20 @@ def test_phone_with_exactly_10_digits_is_accepted(client):
 def test_update_rejects_invalid_phone(client, patient):
     response = client.put(f"/api/patients/{patient['id']}", json={"phone": "12345"})
     assert response.status_code == 422
+
+
+def test_blank_name_is_rejected(client):
+    response = client.post("/api/patients", json={"name": "   ", "phone": "9123456780"})
+    assert response.status_code == 422
+
+
+def test_names_are_trimmed(client):
+    response = client.post("/api/patients", json={"name": "  Meera Nair  ", "phone": "9123456780"})
+    assert response.json()["name"] == "Meera Nair"
+
+
+def test_future_date_of_birth_is_rejected(client):
+    response = client.post(
+        "/api/patients", json={"name": "Future Baby", "phone": "9123456780", "date_of_birth": "2999-01-01"}
+    )
+    assert response.status_code == 422
