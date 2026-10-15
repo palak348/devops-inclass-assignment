@@ -8,7 +8,7 @@ frontend:
     pullPolicy: IfNotPresent
 postgres:
   storage:
-    storageClass: gp2   # EBS volumes via the aws-ebs-csi-driver add-on
+    storageClass: careslot-gp3   # k8s/storageclass-gp3.yaml (EBS CSI driver, gp3)
 ingress:
   # The ingress-nginx controller gets an AWS load balancer; route any hostname
   # so the app is reachable on the load balancer's DNS name.

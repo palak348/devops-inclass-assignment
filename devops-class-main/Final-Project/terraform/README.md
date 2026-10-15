@@ -69,7 +69,7 @@ not know about. If it still exists, `terraform destroy` cannot delete the VPC.
 helm uninstall careslot -n careslot
 helm uninstall monitoring -n monitoring
 helm uninstall ingress-nginx -n ingress-nginx     # deletes the AWS load balancer
-kubectl delete pvc --all -n careslot             # deletes the EBS volume
+kubectl delete pvc --all -n careslot             # deletes the EBS volume (careslot-gp3 has reclaimPolicy: Delete)
 # wait ~1 min, check EC2 > Load Balancers is empty, then:
 terraform destroy                                 # screenshot the "Destroy complete!" line (M7)
 ```

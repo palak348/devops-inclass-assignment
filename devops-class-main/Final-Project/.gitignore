@@ -34,3 +34,7 @@ crash.log
 .DS_Store
 .idea/
 .vscode/
+
+# Saved Terraform plans contain account details - never commit them
+tfplan
+*.tfplan

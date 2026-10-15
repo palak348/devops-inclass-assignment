@@ -295,6 +295,7 @@ helm upgrade --install ingress-nginx ingress-nginx/ingress-nginx --version 4.15.
 helm upgrade --install metrics-server metrics-server/metrics-server --version 3.14.0 -n kube-system
 # monitoring stack: monitoring/README.md
 kubectl apply -f k8s/namespace.yaml
+kubectl apply -f k8s/storageclass-gp3.yaml     # EBS gp3 disk for PostgreSQL
 # then push a commit - the CI deploy job runs helm upgrade --install with the SHA tag
 ```
 

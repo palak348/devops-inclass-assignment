@@ -90,6 +90,15 @@ module "eks" {
       iam_role_additional_policies = {
         ebs_csi = "arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy"
       }
+
+      # The EBS CSI controller runs in a Pod and gets its AWS credentials from the
+      # node role via the instance metadata service. The module default hop limit
+      # of 1 stops at the node; 2 lets the containers on it reach IMDS (IMDSv2 only).
+      metadata_options = {
+        http_endpoint               = "enabled"
+        http_tokens                 = "required"
+        http_put_response_hop_limit = 2
+      }
     }
   }
 }

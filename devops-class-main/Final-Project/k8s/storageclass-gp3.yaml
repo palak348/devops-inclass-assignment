@@ -1,0 +1,16 @@
+# EKS only: EBS gp3 volumes for the PostgreSQL PersistentVolumeClaim.
+# Provisioned by the aws-ebs-csi-driver add-on (terraform/main.tf).
+#   kubectl apply -f k8s/storageclass-gp3.yaml
+# reclaimPolicy Delete: deleting the PVC also deletes the EBS volume, so nothing
+# is left behind (or billed) after `helm uninstall` + `kubectl delete pvc`.
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: careslot-gp3
+provisioner: ebs.csi.aws.com
+volumeBindingMode: WaitForFirstConsumer
+reclaimPolicy: Delete
+allowVolumeExpansion: true
+parameters:
+  type: gp3
+  encrypted: "true"
