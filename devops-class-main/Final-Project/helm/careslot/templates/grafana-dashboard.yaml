@@ -1,0 +1,14 @@
+{{- if .Values.monitoring.grafanaDashboard.enabled }}
+# Picked up by the Grafana dashboard sidecar of kube-prometheus-stack
+# (label grafana_dashboard=1, searched in all namespaces - see monitoring/grafana-values.yaml).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "careslot.fullname" . }}-grafana-dashboard
+  labels:
+    {{- include "careslot.labels" . | nindent 4 }}
+    grafana_dashboard: "1"
+data:
+  careslot-overview.json: |-
+    {{- .Files.Get "dashboards/careslot-overview.json" | nindent 4 }}
+{{- end }}

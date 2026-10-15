@@ -1,0 +1,16 @@
+CareSlot {{ .Chart.AppVersion }} is deployed as release "{{ .Release.Name }}" in namespace "{{ .Release.Namespace }}".
+
+Check it:
+  kubectl get pods,svc,ingress,hpa -n {{ .Release.Namespace }}
+
+{{- if .Values.ingress.enabled }}
+{{- if .Values.ingress.host }}
+Open:   http://{{ .Values.ingress.host }}/          (API: http://{{ .Values.ingress.host }}/api/doctors)
+{{- else }}
+Open the ingress-nginx load balancer hostname:
+  kubectl get svc -n ingress-nginx ingress-nginx-controller -o jsonpath='{.status.loadBalancer.ingress[0].hostname}'
+{{- end }}
+{{- end }}
+
+Without the Ingress:
+  kubectl port-forward -n {{ .Release.Namespace }} svc/{{ include "careslot.fullname" . }}-frontend 3000:{{ .Values.frontend.port }}

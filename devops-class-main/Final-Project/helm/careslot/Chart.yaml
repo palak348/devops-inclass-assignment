@@ -1,0 +1,11 @@
+apiVersion: v2
+name: careslot
+description: CareSlot clinic appointment system - React frontend, FastAPI backend, PostgreSQL
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
+keywords:
+  - clinic
+  - appointments
+  - fastapi
+  - react

@@ -1,0 +1,15 @@
+# AWS EKS (cluster created by terraform/). CI overrides the image repository and
+# sets the tag to the commit SHA on every deploy.
+backend:
+  image:
+    pullPolicy: IfNotPresent
+frontend:
+  image:
+    pullPolicy: IfNotPresent
+postgres:
+  storage:
+    storageClass: gp2   # EBS volumes via the aws-ebs-csi-driver add-on
+ingress:
+  # The ingress-nginx controller gets an AWS load balancer; route any hostname
+  # so the app is reachable on the load balancer's DNS name.
+  host: ""

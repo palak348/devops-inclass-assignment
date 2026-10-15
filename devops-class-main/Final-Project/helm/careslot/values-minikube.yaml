@@ -1,0 +1,15 @@
+# Local minikube cluster. Images are built locally and loaded into minikube:
+#   docker build -t careslot-backend:local backend && minikube image load careslot-backend:local
+#   docker build -t careslot-frontend:local frontend && minikube image load careslot-frontend:local
+backend:
+  image:
+    repository: careslot-backend
+    tag: local
+    pullPolicy: Never
+frontend:
+  image:
+    repository: careslot-frontend
+    tag: local
+    pullPolicy: Never
+ingress:
+  host: careslot.local

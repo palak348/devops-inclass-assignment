@@ -1,0 +1,133 @@
+{{- $fullname := include "careslot.fullname" . -}}
+{{- $secret := include "careslot.postgresSecret" . -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $fullname }}-backend
+  labels:
+    {{- include "careslot.labels" . | nindent 4 }}
+    {{- include "careslot.selector" (list . "backend") | nindent 4 }}
+spec:
+  {{- if not .Values.backend.autoscaling.enabled }}
+  replicas: {{ .Values.backend.replicaCount }}
+  {{- end }}
+  revisionHistoryLimit: 5
+  strategy:
+    type: RollingUpdate
+    rollingUpdate: {maxSurge: 1, maxUnavailable: 0}   # zero-downtime rollouts
+  selector:
+    matchLabels:
+      {{- include "careslot.selector" (list . "backend") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "careslot.labels" . | nindent 8 }}
+        {{- include "careslot.selector" (list . "backend") | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        seccompProfile: {type: RuntimeDefault}
+      # Wait for PostgreSQL before starting, instead of crash-looping on a fresh install.
+      initContainers:
+        - name: wait-for-postgres
+          image: {{ .Values.postgres.image }}
+          # -U/-d are required: uid 10001 has no passwd entry in this image, and
+          # without them pg_isready gives up with "no attempt".
+          command:
+            - sh
+            - -c
+            - until pg_isready -h {{ $secret }} -p 5432 -U {{ .Values.postgres.username }} -d {{ .Values.postgres.database }} -t 2; do echo waiting for postgres; sleep 2; done
+          resources:
+            requests: {cpu: 10m, memory: 16Mi}
+            limits: {cpu: 100m, memory: 64Mi}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: {drop: ["ALL"]}
+      containers:
+        - name: backend
+          image: {{ include "careslot.image" (list .Values.backend.image .) }}
+          imagePullPolicy: {{ .Values.backend.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.backend.port }}
+          env:
+            - name: DB_USER
+              valueFrom: {secretKeyRef: {name: {{ $secret }}, key: username}}
+            - name: DB_PASSWORD
+              valueFrom: {secretKeyRef: {name: {{ $secret }}, key: password}}
+            - name: DB_NAME
+              valueFrom: {secretKeyRef: {name: {{ $secret }}, key: database}}
+            # $(VAR) is expanded by Kubernetes from the variables defined above.
+            - name: DATABASE_URL
+              value: "postgresql+psycopg://$(DB_USER):$(DB_PASSWORD)@{{ $secret }}:5432/$(DB_NAME)"
+          # Migrations run at container start; give them time before liveness kicks in.
+          startupProbe:
+            httpGet: {path: /health, port: http}
+            periodSeconds: 5
+            failureThreshold: 24
+          livenessProbe:
+            httpGet: {path: /health, port: http}
+            periodSeconds: 15
+          readinessProbe:
+            httpGet: {path: /ready, port: http}
+            periodSeconds: 10
+          resources:
+            {{- toYaml .Values.backend.resources | nindent 12 }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: {drop: ["ALL"]}
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $fullname }}-backend
+  labels:
+    {{- include "careslot.labels" . | nindent 4 }}
+    {{- include "careslot.selector" (list . "backend") | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector:
+    {{- include "careslot.selector" (list . "backend") | nindent 4 }}
+  ports:
+    - name: http          # the ServiceMonitor scrapes this named port
+      port: {{ .Values.backend.port }}
+      targetPort: http
+{{- if .Values.backend.autoscaling.enabled }}
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ $fullname }}-backend
+  labels:
+    {{- include "careslot.labels" . | nindent 4 }}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ $fullname }}-backend
+  minReplicas: {{ .Values.backend.autoscaling.minReplicas }}
+  maxReplicas: {{ .Values.backend.autoscaling.maxReplicas }}
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: {{ .Values.backend.autoscaling.targetCPUUtilizationPercentage }}
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 60   # shrink back quickly after the load test
+{{- end }}
