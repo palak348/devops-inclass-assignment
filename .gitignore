@@ -15,3 +15,8 @@ test-results.tap
 # Never commit real environment files.
 .env
 .env.*
+
+# Python build/venv artefacts
+__pycache__/
+*.py[cod]
+.venv/

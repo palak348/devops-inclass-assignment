@@ -1,0 +1,36 @@
+# Secrets - only the *.example files are committed
+.env
+.env.*
+!.env.example
+*.tfvars
+!*.tfvars.example
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+test.db
+*.db
+
+# Node
+node_modules/
+dist/
+
+# Terraform
+.terraform/
+.terraform.lock.hcl.bak
+*.tfstate
+*.tfstate.*
+crash.log
+
+# Reports produced by local scans
+*-report.json
+*.tap
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
