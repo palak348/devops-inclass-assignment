@@ -50,7 +50,7 @@ One-time: add `127.0.0.1 careslot.local` to `C:\Windows\System32\drivers\etc\hos
 | ☑ | `m7-aws-eks-nodegroup.png` | M7 | EKS → `careslot-eks` → Compute → **Node groups**: Active, desired size 2 (the *Nodes* tab says "Unauthorized" for the root user - expected, see below) |
 | ☑ | `m8-eks-browser.png` | M8 | The app opened through the AWS load balancer hostname (address bar visible) |
 | ☑ | `m10-eks-deploy.png` | M10 | Actions run where job "3. Deploy to EKS with Helm" is green |
-| ☐ | `m7-terraform-destroy.png` | M7 | `terraform destroy` → `Destroy complete! Resources: N destroyed.` |
+| ☑ | `m7-terraform-destroy.png` | M7 | `terraform destroy` → `Destroy complete! Resources: N destroyed.` |
 
 > **EKS console "Nodes" tab shows "Error loading resources - Unauthorized"** when signed in as
 > the root user. Kubernetes only admits identities with an EKS access entry, and Terraform
