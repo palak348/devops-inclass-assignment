@@ -16,6 +16,7 @@ produced, and what I understood from it.
 | [`Docker-Fundamental`](devops-class-main/Docker-Fundamental) | Six Hello World apps containerised — Node.js, Python, Java, Apache, React, Nginx |
 | [`Dockerfiles-Images`](devops-class-main/Dockerfiles-Images) | Multi-stage build on port 8080, plus three app types running together |
 | [`Docker Network`](devops-class-main/Docker%20Network) | Custom bridge networks, container DNS, host network, bind mount, overlay networks |
+| [`Final-Project`](devops-class-main/Final-Project) | **Capstone - CareSlot clinic appointments**: React + FastAPI + PostgreSQL, pytest, Docker, GitHub Actions, Trivy, GHCR, Terraform (AWS VPC + EKS), Helm, Ingress, HPA, Prometheus + Grafana |
 
 ## Environment
 
