@@ -1,0 +1,12 @@
+line-length = 120
+target-version = "py312"
+extend-exclude = ["alembic/script.py.mako"]
+
+[lint]
+# pycodestyle, pyflakes, isort, bugbear, pyupgrade
+select = ["E", "W", "F", "I", "B", "UP"]
+# FastAPI's `Depends()` / `Query()` in argument defaults is the documented pattern.
+ignore = ["B008"]
+
+[lint.isort]
+known-first-party = ["app"]
