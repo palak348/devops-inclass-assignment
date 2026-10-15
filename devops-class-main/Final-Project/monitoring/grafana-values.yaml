@@ -1,0 +1,20 @@
+# Grafana part of prometheus-community/kube-prometheus-stack (chart 92.8.0).
+
+grafana:
+  enabled: true
+  # Admin login comes from a Secret created by hand (see monitoring/README.md),
+  # so no password is stored in Git.
+  admin:
+    existingSecret: grafana-admin
+    userKey: admin-user
+    passwordKey: admin-password
+  sidecar:
+    dashboards:
+      enabled: true
+      # Load every ConfigMap labelled grafana_dashboard=1 from any namespace -
+      # the CareSlot Helm chart ships its dashboard this way.
+      label: grafana_dashboard
+      labelValue: "1"
+      searchNamespace: ALL
+  service:
+    type: ClusterIP   # reach it with: kubectl port-forward -n monitoring svc/monitoring-grafana 3001:80

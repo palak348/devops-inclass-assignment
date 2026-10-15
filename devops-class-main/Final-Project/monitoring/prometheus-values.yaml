@@ -1,0 +1,22 @@
+# Prometheus part of prometheus-community/kube-prometheus-stack (chart 92.8.0).
+# Used together with grafana-values.yaml - see monitoring/README.md.
+
+prometheus:
+  prometheusSpec:
+    # Scrape every ServiceMonitor / PodMonitor in every namespace, not only the
+    # ones carrying this Helm release's label. This is what lets Prometheus
+    # find the CareSlot ServiceMonitor in the "careslot" namespace.
+    serviceMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelectorNilUsesHelmValues: false
+    ruleSelectorNilUsesHelmValues: false
+    serviceMonitorNamespaceSelector: {}
+    serviceMonitorSelector: {}
+    retention: 2d
+    scrapeInterval: 15s
+    resources:
+      requests: {cpu: 200m, memory: 512Mi}
+      limits: {memory: 1Gi}
+
+# Not needed for the capstone; saves ~200 MB of RAM on minikube / small nodes.
+alertmanager:
+  enabled: false
