@@ -230,7 +230,7 @@ runtime hardening (non-root, dropped capabilities, read-only root FS, Pod Securi
 
 `terraform/` creates, in `ap-south-1`: a VPC with **2 public + 2 private subnets**, an
 internet gateway and one NAT gateway, and an **EKS 1.36 cluster** with a managed node group
-(2 × t3.medium) and the EBS CSI add-on. No credentials are in the code; `terraform.tfvars.example`
+(2 × m7i-flex.large, Free-plan eligible) and the EBS CSI add-on. No credentials are in the code; `terraform.tfvars.example`
 documents the variables. Full guide, cost table and the clean destroy order:
 [`terraform/README.md`](terraform/README.md).
 

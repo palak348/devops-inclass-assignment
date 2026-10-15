@@ -10,7 +10,7 @@ AWS (ap-south-1)
     ├── internet gateway + 1 NAT gateway
     └── EKS cluster "careslot-eks" (Kubernetes 1.36)   module terraform-aws-modules/eks 21.29.0
         ├── add-ons: vpc-cni, kube-proxy, coredns, eks-pod-identity-agent, aws-ebs-csi-driver
-        └── managed node group "default": t3.medium × 2 (min 1, max 3), AL2023
+        └── managed node group "default": m7i-flex.large × 2 (min 1, max 2), AL2023
 ```
 
 | File | Purpose |
@@ -28,11 +28,18 @@ AWS (ap-south-1)
 | Resource | ~USD / hour |
 |---|---|
 | EKS control plane | 0.10 |
-| 2 × t3.medium nodes | ~0.09 |
+| 2 × m7i-flex.large nodes ($0.10075/h each, AWS Price List API) | 0.20 |
 | NAT gateway + its public IP | ~0.06 |
 | EBS volumes, data transfer | ~0.01 |
 | ingress-nginx load balancer (once installed) | ~0.03 |
-| **Total** | **≈ 0.25 – 0.30** |
+| **Total** | **≈ 0.40** |
+
+Why `m7i-flex.large` and not `t3.medium`: on an AWS **Free plan** account only Free Tier
+eligible instance types can be launched. Checked on the account with
+`aws ec2 describe-instance-types --region ap-south-1 --filters Name=free-tier-eligible,Values=true`:
+`t3.medium` → not eligible; `m7i-flex.large` (2 vCPU, 8 GiB) → eligible. The account's
+On-Demand vCPU quota (`L-1216C47A`) is 5, so the node group is capped at 2 nodes (4 vCPU).
+On the Free plan, usage is paid from the sign-up credits; the account itself is never charged.
 
 Choices made to keep it cheap and make `destroy` leave nothing behind:
 - one NAT gateway instead of one per AZ;

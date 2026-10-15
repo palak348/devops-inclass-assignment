@@ -35,9 +35,9 @@ variable "vpc_cidr" {
 }
 
 variable "node_instance_types" {
-  description = "EC2 instance types for the managed worker node group."
+  description = "EC2 instance types for the worker nodes. AWS Free-plan accounts may only launch Free Tier eligible types (t3.medium is not); m7i-flex.large is eligible: 2 vCPU, 8 GiB."
   type        = list(string)
-  default     = ["t3.medium"]
+  default     = ["m7i-flex.large"]
 }
 
 variable "node_min_size" {
@@ -51,6 +51,7 @@ variable "node_desired_size" {
 }
 
 variable "node_max_size" {
-  type    = number
-  default = 3
+  description = "Keep nodes x 2 vCPU within the account's EC2 vCPU quota (5 on a new Free-plan account)."
+  type        = number
+  default     = 2
 }
