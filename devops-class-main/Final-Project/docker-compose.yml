@@ -1,0 +1,46 @@
+# Full CareSlot stack on one machine:  docker compose up --build
+# Credentials come from .env (copy .env.example -> .env); nothing secret is committed.
+name: careslot
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-careslot}
+      POSTGRES_USER: ${POSTGRES_USER:-careslot}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env (see .env.example)}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  backend:
+    build: ./backend
+    image: careslot-backend:local
+    environment:
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-careslot}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-careslot}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+
+  frontend:
+    build: ./frontend
+    image: careslot-frontend:local
+    environment:
+      BACKEND_URL: http://backend:8000
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "3000:8080"
+    restart: unless-stopped
+
+volumes:
+  postgres-data:
