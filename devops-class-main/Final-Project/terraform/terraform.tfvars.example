@@ -1,0 +1,15 @@
+# Copy to terraform.tfvars to override defaults:  cp terraform.tfvars.example terraform.tfvars
+# terraform.tfvars is git-ignored. NEVER put AWS access keys here - Terraform
+# reads credentials from `aws configure` / environment variables.
+
+aws_region         = "ap-south-1"
+project            = "careslot"
+environment        = "dev"
+cluster_name       = "careslot-eks"
+kubernetes_version = "1.36"
+vpc_cidr           = "10.20.0.0/16"
+
+node_instance_types = ["t3.medium"]
+node_min_size       = 1
+node_desired_size   = 2
+node_max_size       = 3
