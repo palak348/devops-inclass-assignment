@@ -2,6 +2,8 @@
 # End-to-end smoke test of a running CareSlot stack.
 #   ./scripts/smoke-test.sh                       # docker compose (frontend on :3000)
 #   ./scripts/smoke-test.sh http://careslot.local # Kubernetes Ingress
+#   HOST_HEADER=careslot.local ./scripts/smoke-test.sh http://localhost:18080
+#                                                 # Ingress via port-forward, no hosts-file entry
 # Every request goes through the frontend URL, so this also proves the /api routing.
 set -euo pipefail
 
@@ -9,11 +11,13 @@ BASE="${1:-http://localhost:3000}"
 OUT="$(mktemp)"
 trap 'rm -f "$OUT"' EXIT
 pass=0
+HOST_ARGS=()
+[[ -n "${HOST_HEADER:-}" ]] && HOST_ARGS=(-H "Host: ${HOST_HEADER}")
 
 check() { # check <description> <expected-status> <curl args...>
   local desc="$1" expected="$2"; shift 2
   local status
-  status=$(curl -s -o "$OUT" -w '%{http_code}' "$@")
+  status=$(curl -s -o "$OUT" -w '%{http_code}' "${HOST_ARGS[@]}" "$@")
   if [[ "$status" == "$expected" ]]; then
     echo "  PASS  $desc ($status)"; pass=$((pass + 1))
   else

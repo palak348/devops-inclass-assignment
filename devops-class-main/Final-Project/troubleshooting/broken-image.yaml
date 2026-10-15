@@ -1,0 +1,38 @@
+# LAB 1 - deliberately broken: the image tag does not exist.
+#   kubectl apply -f troubleshooting/broken-image.yaml
+# Expected symptom: Pods stuck in ErrImagePull -> ImagePullBackOff.
+# Diagnosis + fix: troubleshooting/README.md
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: careslot-backend-canary
+  namespace: careslot
+  labels:
+    lab: broken-image
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: backend-canary
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: backend-canary
+    spec:
+      # Compliant with the namespace's "restricted" Pod Security level, so the
+      # only thing wrong with this Pod is the image.
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        seccompProfile: {type: RuntimeDefault}
+      containers:
+        - name: backend
+          # BUG: typo in the tag - "1.0.0-relaese" was never built or pushed.
+          image: ghcr.io/palak348/devops-inclass-assignment/careslot-backend:1.0.0-relaese
+          ports:
+            - containerPort: 8000
+          resources:
+            requests: {cpu: 50m, memory: 64Mi}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: {drop: ["ALL"]}

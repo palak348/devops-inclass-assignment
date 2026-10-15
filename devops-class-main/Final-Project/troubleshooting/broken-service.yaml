@@ -1,0 +1,21 @@
+# LAB 2 - deliberately broken: the Service selector matches no Pod.
+#   kubectl apply -f troubleshooting/broken-service.yaml
+# Expected symptom: Service exists, but has no endpoints -> requests time out / 503.
+# Diagnosis + fix: troubleshooting/README.md
+apiVersion: v1
+kind: Service
+metadata:
+  name: careslot-backend-debug
+  namespace: careslot
+  labels:
+    lab: broken-service
+spec:
+  type: ClusterIP
+  selector:
+    # BUG: the backend Pods are labelled app.kubernetes.io/name=backend,
+    # not "careslot-api".
+    app.kubernetes.io/name: careslot-api
+  ports:
+    - name: http
+      port: 8000
+      targetPort: 8000
