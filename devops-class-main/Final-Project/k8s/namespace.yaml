@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: careslot
+  labels:
+    app.kubernetes.io/part-of: careslot
+    # Pod Security Admission: every CareSlot Pod (frontend, backend, postgres)
+    # runs non-root with all capabilities dropped, so "restricted" is enforced.
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/warn: restricted
