@@ -77,14 +77,25 @@ Interactive docs: **`/docs`** (Swagger UI).
 | GET / PUT / DELETE | `/api/doctors/{id}` | Read / update / remove a doctor |
 | GET / POST | `/api/patients` | List (`?search=`) / register patients |
 | GET / PUT / DELETE | `/api/patients/{id}` | Read / update / remove a patient |
-| GET / POST | `/api/appointments` | List (`?doctor_id=&patient_id=&status=&on_date=`) / book |
+| GET / POST | `/api/appointments` | List (`?doctor_id=&patient_id=&status=&on_date=&upcoming=true`) / book |
 | GET / PUT / DELETE | `/api/appointments/{id}` | Read / reschedule / delete |
 | PATCH | `/api/appointments/{id}/status` | Check in, complete, cancel |
-| GET | `/api/stats` | Dashboard numbers |
+| GET | `/api/stats` | Dashboard numbers (today, upcoming, waiting, available doctors, busiest doctor) |
 
-Business rules: `404` for unknown IDs, `409` when a doctor is already booked for an
-overlapping slot or a finished visit is reopened, `400` for booking an unavailable doctor,
-`422` for invalid input (bad phone/email, too-short names, durations outside 5–240 min).
+**Booking rules** (enforced by the API, mirrored in the UI):
+
+| Rule | Response |
+|---|---|
+| Unknown doctor / patient / appointment | `404` |
+| Booking or rescheduling into the past (5-minute grace) | `400` |
+| Doctor marked unavailable | `400` |
+| Doctor **or patient** already has an overlapping active appointment | `409` |
+| Status moves only `SCHEDULED → CHECKED_IN → COMPLETED` (or `→ CANCELLED`); finished visits are final and cannot be edited | `409` |
+| Status changes only via `PATCH …/status` — `PUT` with `status` (or any unknown field) is rejected | `422` |
+| Phone must be exactly 10 digits; names are trimmed and cannot be blank; date of birth cannot be in the future; duration 5–240 min | `422` |
+
+Timestamps are stored in UTC; "today" and the `on_date` filter use the clinic's local day
+(`CLINIC_TIMEZONE`, default `Asia/Kolkata`), so a 01:30 IST visit counts as that day, not the previous UTC day.
 
 ---
 
@@ -153,7 +164,7 @@ npm run dev        # http://localhost:5173, /api is proxied to localhost:8000
 
 ```bash
 cd backend
-pytest -v          # 25 tests
+pytest -v          # 45 tests
 ruff check . && ruff format --check .
 ```
 
@@ -342,7 +353,7 @@ commands, root cause and fix from a real run: [`troubleshooting/README.md`](trou
 | Module | Where |
 |---|---|
 | M1 Application | `backend/app/`, `backend/alembic/versions/`, `frontend/`, `docker-compose.yml` |
-| M2 Testing | `backend/tests/` (25 tests), `backend/pytest.ini`, `backend/tests/conftest.py` |
+| M2 Testing | `backend/tests/` (45 tests), `backend/pytest.ini`, `backend/tests/conftest.py` |
 | M3 Git | commit history, `.gitignore` (`.env`, `__pycache__`, `node_modules`, `.venv`) |
 | M4 Docker | `backend/Dockerfile`, `frontend/Dockerfile` (multi-stage, non-root), `docker-compose.yml` |
 | M5 CI/CD | `.github/workflows/final-project.yml` |
