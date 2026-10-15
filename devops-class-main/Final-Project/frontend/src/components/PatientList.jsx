@@ -6,6 +6,8 @@ export default function PatientList({ patients, onCreate, onDelete }) {
   const [form, setForm] = useState(EMPTY);
   const [search, setSearch] = useState('');
   const set = (key) => (e) => setForm({ ...form, [key]: e.target.value });
+  // Keep only digits and stop at 10, whether typed or pasted (e.g. "+91 98765-43210").
+  const setPhone = (e) => setForm({ ...form, phone: e.target.value.replace(/\D/g, '').slice(0, 10) });
 
   const submit = async (e) => {
     e.preventDefault();
@@ -20,7 +22,19 @@ export default function PatientList({ patients, onCreate, onDelete }) {
     <>
       <form className="card inline-form" onSubmit={submit}>
         <input placeholder="Full name" value={form.name} onChange={set('name')} required minLength={2} />
-        <input placeholder="Phone" value={form.phone} onChange={set('phone')} required pattern="\+?[0-9 \-]{7,20}" />
+        <input
+          placeholder="10-digit mobile number"
+          type="tel"
+          inputMode="numeric"
+          autoComplete="tel-national"
+          value={form.phone}
+          onChange={setPhone}
+          required
+          minLength={10}
+          maxLength={10}
+          pattern="[0-9]{10}"
+          title="Enter exactly 10 digits"
+        />
         <input placeholder="Email (optional)" type="email" value={form.email} onChange={set('email')} />
         <input type="date" aria-label="Date of birth" value={form.date_of_birth} onChange={set('date_of_birth')} />
         <button className="btn primary">Register patient</button>

@@ -31,9 +31,13 @@ class DoctorOut(DoctorBase):
 
 
 # ---------- Patients ----------
+# Mobile number: exactly 10 digits, nothing else (no spaces, dashes or +91).
+PHONE_PATTERN = r"^[0-9]{10}$"
+
+
 class PatientBase(BaseModel):
     name: str = Field(min_length=2, max_length=120)
-    phone: str = Field(pattern=r"^\+?[0-9 \-]{7,20}$")
+    phone: str = Field(pattern=PHONE_PATTERN, examples=["9876543210"])
     email: EmailStr | None = None
     date_of_birth: date | None = None
 
@@ -44,13 +48,16 @@ class PatientCreate(PatientBase):
 
 class PatientUpdate(BaseModel):
     name: str | None = Field(default=None, min_length=2, max_length=120)
-    phone: str | None = Field(default=None, pattern=r"^\+?[0-9 \-]{7,20}$")
+    phone: str | None = Field(default=None, pattern=PHONE_PATTERN)
     email: EmailStr | None = None
     date_of_birth: date | None = None
 
 
 class PatientOut(PatientBase):
     id: int
+    # Output is not re-validated against PHONE_PATTERN, so rows saved before the
+    # 10-digit rule still load instead of breaking the patient list.
+    phone: str
     model_config = ConfigDict(from_attributes=True)
 
 

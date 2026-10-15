@@ -32,7 +32,7 @@ check "frontend serves the SPA"     200 "$BASE/"
 check "frontend probe"              200 "$BASE/healthz"
 check "list doctors (seeded)"       200 "$BASE/api/doctors"
 check "create patient"              201 -X POST "$BASE/api/patients" -H 'Content-Type: application/json' \
-  -d '{"name":"Smoke Test Patient","phone":"+91 90000 00000"}'
+  -d '{"name":"Smoke Test Patient","phone":"9000000000"}'
 patient_id=$(field id)
 check "create doctor"               201 -X POST "$BASE/api/doctors" -H 'Content-Type: application/json' \
   -d '{"name":"Dr. Smoke Test","specialty":"General Medicine","room":"999"}'

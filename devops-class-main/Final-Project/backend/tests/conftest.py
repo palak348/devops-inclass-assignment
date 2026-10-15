@@ -52,7 +52,7 @@ def doctor(client: TestClient) -> dict:
 def patient(client: TestClient) -> dict:
     response = client.post(
         "/api/patients",
-        json={"name": "Asha Verma", "phone": "+91 98765 43210", "email": "asha@example.com"},
+        json={"name": "Asha Verma", "phone": "9876543210", "email": "asha@example.com"},
     )
     assert response.status_code == 201
     return response.json()

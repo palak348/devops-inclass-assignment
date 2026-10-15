@@ -1,3 +1,6 @@
+import pytest
+
+
 def test_create_patient(client, patient):
     assert patient["id"] > 0
     assert patient["email"] == "asha@example.com"
@@ -17,9 +20,27 @@ def test_search_patients_by_name(client, patient):
 
 
 def test_update_and_delete_patient(client, patient):
-    updated = client.put(f"/api/patients/{patient['id']}", json={"phone": "+91 90000 11111"})
+    updated = client.put(f"/api/patients/{patient['id']}", json={"phone": "9000011111"})
     assert updated.status_code == 200
-    assert updated.json()["phone"] == "+91 90000 11111"
+    assert updated.json()["phone"] == "9000011111"
 
     assert client.delete(f"/api/patients/{patient['id']}").status_code == 204
     assert client.get(f"/api/patients/{patient['id']}").status_code == 404
+
+
+@pytest.mark.parametrize("phone", ["987654321", "98765432101", "98765 43210", "+919876543210", "98765abcde", ""])
+def test_phone_must_be_exactly_10_digits(client, phone):
+    response = client.post("/api/patients", json={"name": "Phone Check", "phone": phone})
+    assert response.status_code == 422
+    assert response.json()["detail"][0]["loc"][-1] == "phone"
+
+
+def test_phone_with_exactly_10_digits_is_accepted(client):
+    response = client.post("/api/patients", json={"name": "Phone Check", "phone": "9123456780"})
+    assert response.status_code == 201
+    assert response.json()["phone"] == "9123456780"
+
+
+def test_update_rejects_invalid_phone(client, patient):
+    response = client.put(f"/api/patients/{patient['id']}", json={"phone": "12345"})
+    assert response.status_code == 422
