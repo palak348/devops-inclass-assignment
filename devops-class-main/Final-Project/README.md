@@ -37,7 +37,7 @@ Developer ──► Git / GitHub ──► GitHub Actions
 6. [CI/CD](#6-cicd--github-actions) · 7. [Security scanning](#7-security--trivy) ·
 8. [Terraform](#8-terraform--aws) · 9. [Kubernetes + Helm](#9-kubernetes--helm) ·
 10. [Monitoring](#10-monitoring) · 11. [Troubleshooting](#11-troubleshooting) ·
-12. [Demo script](#12-final-demo-script) · 13. [Rubric map](#13-rubric-map)
+12. [Rubric map](#12-rubric-map)
 
 ---
 
@@ -340,27 +340,7 @@ commands, root cause and fix from a real run: [`troubleshooting/README.md`](trou
 
 ---
 
-## 12. Presentation walkthrough
-
-Order of a live walkthrough, following SUBMISSION.md (slides in [`demo/`](../../demo/)):
-
-| # | Part | What is shown |
-|---|---|---|
-| 1 | Slides | `demo/CareSlot-presentation.pptx` - what was built, architecture |
-| 2 | Codebase | folder structure, key files (routers, tests, Dockerfiles, Helm chart, Argo CD, Terraform, workflow) |
-| 3 | CI/CD | a UI change is committed and pushed; the Actions run goes test → build → Trivy → GHCR → GitOps commit → Argo CD Healthy; the app shows the change |
-| 4 | Terraform | `terraform plan` (no drift), AWS Console: VPC subnets + EKS cluster |
-| 5 | Argo CD | `careslot` Application Synced / Healthy, resource tree, synced to the bot's GitOps commit |
-| 6 | Kubernetes | `kubectl get pods / svc / ingress / hpa -n careslot` |
-| 7 | Prometheus | Targets page - `careslot-backend` 2/2 UP |
-| 8 | Grafana | CareSlot - API Overview dashboard, live |
-
-Extra material for questions: HPA load test (`scripts/load-test.sh`), troubleshooting labs
-(`troubleshooting/`), Swagger CRUD and the PostgreSQL table (`kubectl exec … psql`).
-
----
-
-## 13. Rubric map
+## 12. Rubric map
 
 | Module | Where |
 |---|---|
@@ -373,4 +353,4 @@ Extra material for questions: HPA load test (`scripts/load-test.sh`), troublesho
 | M7 Terraform | `terraform/` |
 | M8 Kubernetes + Helm | `k8s/namespace.yaml`, `helm/careslot/`, `argocd/` (GitOps on EKS) |
 | M9 Observability | `/metrics`, `monitoring/`, ServiceMonitor + dashboard in the chart |
-| M10 Documentation + presentation | repository-root `README.md` (full technical documentation incl. known issues), this README, `demo/` (slide deck PPTX + PDF) |
+| M10 Documentation | repository-root `README.md` (full technical documentation incl. known issues), this README, `demo/` (slide deck PPTX + PDF) |
