@@ -56,3 +56,21 @@ One-time: add `127.0.0.1 careslot.local` to `C:\Windows\System32\drivers\etc\hos
 > the root user. Kubernetes only admits identities with an EKS access entry, and Terraform
 > grants one to the cluster creator (`careslot-admin`) only. The *Node groups* tab uses the AWS
 > API and works - use that one for the screenshot.
+
+## Demo day on EKS (do NOT skip)
+
+M8's rubric says "a Kubernetes cluster", so the minikube screenshots above are valid. The
+README flow (Terraform → Kubernetes → Helm → Ingress → …) implies the AWS cluster too, so
+while EKS is up for the live demo, also capture the same evidence **from EKS**:
+
+| ✔ | File | How (kubectl pointed at EKS: `aws eks update-kubeconfig --region ap-south-1 --name careslot-eks`) |
+|---|---|---|
+| ☐ | `m8-eks-get-pods.png` | `kubectl get pods -n careslot -o wide` - Pods on the EKS nodes, images tagged with the commit SHA |
+| ☐ | `m8-eks-get-svc.png` | `kubectl get svc,ingress,hpa -n careslot` - Ingress ADDRESS = the AWS load balancer |
+| ☐ | `m8-eks-helm-list.png` | `helm list -n careslot` and `helm history careslot -n careslot` |
+| ☐ | (live) | Change a small piece of UI → commit → push → Actions → new Pods with the new SHA → refresh the load balancer URL |
+
+Order on the day: `terraform apply` → `kubectl apply -f k8s/namespace.yaml -f k8s/storageclass-gp3.yaml` →
+install ingress-nginx, metrics-server, monitoring (README §9) → push a commit (CI deploys) →
+screenshots + live demo → cleanup (README §9 / terraform/README.md "Destroy") →
+delete the two GitHub secrets and deactivate the `careslot-admin` access key in IAM.
