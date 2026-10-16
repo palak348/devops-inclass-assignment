@@ -54,7 +54,7 @@ cd terraform
 terraform init
 terraform fmt -check
 terraform validate
-terraform plan -out tfplan       # screenshot this (M7)
+terraform plan -out tfplan       # expect: Plan: 53 to add, 0 to change, 0 to destroy
 terraform apply tfplan           # ~15-20 min
 $(terraform output -raw configure_kubectl)   # bash; in PowerShell copy the printed command
 kubectl get nodes
@@ -66,12 +66,13 @@ Kubernetes creates an AWS load balancer for ingress-nginx that Terraform does
 not know about. If it still exists, `terraform destroy` cannot delete the VPC.
 
 ```bash
-helm uninstall careslot -n careslot
+kubectl delete -f ../argocd/careslot-application.yaml   # GitOps install (EKS); plain Helm: helm uninstall careslot -n careslot
+helm uninstall argocd -n argocd
 helm uninstall monitoring -n monitoring
 helm uninstall ingress-nginx -n ingress-nginx     # deletes the AWS load balancer
 kubectl delete pvc --all -n careslot             # deletes the EBS volume (careslot-gp3 has reclaimPolicy: Delete)
 # wait ~1 min, check EC2 > Load Balancers is empty, then:
-terraform destroy                                 # screenshot the "Destroy complete!" line (M7)
+terraform destroy                                 # expect: Destroy complete! Resources: 53 destroyed.
 ```
 
 Afterwards check the AWS Console (region **Mumbai**): VPC, EKS, EC2, Load Balancers,
