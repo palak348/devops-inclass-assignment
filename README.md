@@ -1,22 +1,43 @@
-# DevOps — In-Class Assignments & Final Project
+# CareSlot — Clinic Appointment Platform on AWS EKS
 
-**Palak Agrawal** · 24BCS10504
+[![CareSlot CI/CD](https://github.com/palak348/devops-inclass-assignment/actions/workflows/final-project.yml/badge.svg)](https://github.com/palak348/devops-inclass-assignment/actions/workflows/final-project.yml)
+![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)
+![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)
+![Terraform](https://img.shields.io/badge/Terraform-AWS%20VPC%20%2B%20EKS-7B42BC?logo=terraform&logoColor=white)
+![Kubernetes](https://img.shields.io/badge/Kubernetes-Helm%20%2B%20Argo%20CD-326CE5?logo=kubernetes&logoColor=white)
 
-This repository holds every session's practical and the **final capstone project, CareSlot**,
-documented below. Each earlier session folder (index at the end) contains the commands I ran,
-their output and what I understood from it.
+DevOps capstone (Session 21) by **Palak Agrawal** (24BCS10504): a full-stack clinic
+appointment system and the complete delivery chain around it — tests, container builds,
+a vulnerability gate, a container registry, Terraform-provisioned AWS infrastructure,
+GitOps deployment to Kubernetes, autoscaling and monitoring.
 
----
-
-# Final Project — CareSlot (clinic appointment system)
+This repository also contains the practical work from every earlier session of the course
+(see [Coursework](#12-coursework)).
 
 | | |
 |---|---|
-| Code | [`devops-class-main/Final-Project`](devops-class-main/Final-Project) |
+| Source | [`devops-class-main/Final-Project/`](devops-class-main/Final-Project) |
 | Pipeline | [`.github/workflows/final-project.yml`](.github/workflows/final-project.yml) · [runs](https://github.com/palak348/devops-inclass-assignment/actions/workflows/final-project.yml) |
-| Evidence for every grading item | [`docs/SCREENSHOTS.md`](devops-class-main/Final-Project/docs/SCREENSHOTS.md) |
-| Presentation slides | [`demo/`](demo/) (PPTX + PDF) |
-| Deeper module docs | [Project README](devops-class-main/Final-Project/README.md) · [Terraform](devops-class-main/Final-Project/terraform/README.md) · [Argo CD](devops-class-main/Final-Project/argocd/README.md) · [Monitoring](devops-class-main/Final-Project/monitoring/README.md) · [Trivy](devops-class-main/Final-Project/docs/TRIVY.md) · [Troubleshooting](devops-class-main/Final-Project/troubleshooting/README.md) |
+| Evidence (every rubric item) | [`docs/EVIDENCE.md`](devops-class-main/Final-Project/docs/EVIDENCE.md) |
+| Presentation | [`demo/`](demo/) (PPTX + PDF) |
+| Component docs | [Backend](devops-class-main/Final-Project/backend/README.md) · [Frontend](devops-class-main/Final-Project/frontend/README.md) · [Helm chart](devops-class-main/Final-Project/helm/careslot/README.md) · [Terraform](devops-class-main/Final-Project/terraform/README.md) · [Argo CD](devops-class-main/Final-Project/argocd/README.md) · [Monitoring](devops-class-main/Final-Project/monitoring/README.md) · [Trivy](devops-class-main/Final-Project/docs/TRIVY.md) · [Troubleshooting](devops-class-main/Final-Project/troubleshooting/README.md) |
+
+## Contents
+
+1. [Project description and purpose](#1-project-description-and-purpose)
+2. [Architecture](#2-architecture)
+3. [Tech stack](#3-tech-stack)
+4. [Local setup](#4-local-setup)
+5. [CI/CD pipeline](#5-cicd-pipeline)
+6. [Terraform infrastructure](#6-terraform-infrastructure)
+7. [Kubernetes / Helm deployment](#7-kubernetes--helm-deployment)
+8. [Observability](#8-observability)
+9. [Security](#9-security)
+10. [Known issues and limitations](#10-known-issues-and-limitations)
+11. [Repository structure](#11-repository-structure)
+12. [Coursework](#12-coursework)
+
+---
 
 ## 1. Project description and purpose
 
@@ -198,17 +219,62 @@ Prometheus scrape every backend Pod (Targets page: `serviceMonitor/careslot/care
 
 ---
 
-# Other coursework
+## 11. Repository structure
 
-| Folder | What's inside |
-|---|---|
-| [`Linux Fundamentals`](devops-class-main/Linux%20Fundamentals) | Soft vs hard links, `adduser` vs `useradd`, `journalctl`, command cheat sheet |
-| [`Networking Fundamentals`](devops-class-main/Networking%20Fundamentals) | `ping`, `tracert`, `ipconfig`, `netstat`, `nslookup`, plus the Linux `ip` commands |
-| [`Shell-Scripting`](devops-class-main/Shell-Scripting) | `system_info.sh` — system info, user input, output redirection to a log file |
-| [`Git-Github`](devops-class-main/Git-Github) | `git commit -a -m` vs `git commit -m`, and `git cherry-pick` |
-| [`Docker-Fundamental`](devops-class-main/Docker-Fundamental) | Six Hello World apps containerised — Node.js, Python, Java, Apache, React, Nginx |
-| [`Dockerfiles-Images`](devops-class-main/Dockerfiles-Images) | Multi-stage build on port 8080, plus three app types running together |
-| [`Docker Network`](devops-class-main/Docker%20Network) | Custom bridge networks, container DNS, host network, bind mount, overlay networks |
-| [`Final-Project`](devops-class-main/Final-Project) | **Capstone - CareSlot** (documented above) |
+```text
+.
+├── .github/workflows/
+│   ├── final-project.yml        CareSlot CI/CD: test → build → Trivy → GHCR → GitOps deploy
+│   ├── ci.yml · cd.yml          Session 16 (CI/CD & GitHub Actions)
+│   └── devsecops.yml            Session 17 (DevSecOps)
+├── .gitleaks.toml               secret-scanning policy for the whole history
+├── demo/                        presentation deck (PPTX + PDF)
+└── devops-class-main/
+    ├── Final-Project/           CareSlot
+    │   ├── backend/             FastAPI app, Alembic migrations, pytest suite, Dockerfile
+    │   ├── frontend/            React + Vite SPA, Nginx template, multi-stage Dockerfile
+    │   ├── docker-compose.yml   local stack: postgres + backend + frontend
+    │   ├── terraform/           AWS VPC + EKS
+    │   ├── k8s/                 namespace and StorageClass (cluster bootstrap)
+    │   ├── helm/careslot/       Helm chart, values per environment, Grafana dashboard
+    │   ├── argocd/              Argo CD install values and the CareSlot Application
+    │   ├── monitoring/          kube-prometheus-stack values (Prometheus, Grafana)
+    │   ├── troubleshooting/     deliberately broken manifests + investigation write-up
+    │   ├── scripts/             smoke test and load test
+    │   └── docs/                evidence index, Trivy report, screenshots
+    └── <session folders>/       earlier coursework, see below
+```
 
-Environment: Windows 11 · Docker Desktop · minikube · AWS (ap-south-1)
+GitHub only runs workflows from the repository root, so the CareSlot pipeline lives in
+`.github/workflows/` and is scoped to `devops-class-main/Final-Project/**` with a path filter.
+
+---
+
+## 12. Coursework
+
+Practical work from the earlier sessions. Each folder has its own README with the commands
+run, their output and the conclusions drawn.
+
+| Area | Folder | Topics |
+|---|---|---|
+| Foundations | [Linux Fundamentals](devops-class-main/Linux%20Fundamentals) | Soft vs hard links, `adduser` vs `useradd`, `journalctl` |
+| | [Networking Fundamentals](devops-class-main/Networking%20Fundamentals) | `ping`, `tracert`, `ipconfig`, `netstat`, `nslookup`, Linux `ip` |
+| | [Git-Github](devops-class-main/Git-Github) | `git commit -a -m` vs `git commit -m`, `git cherry-pick` |
+| | [Shell-Scripting](devops-class-main/Shell-Scripting) | System-information script with user input and log redirection |
+| Containers | [Docker-Fundamental](devops-class-main/Docker-Fundamental) | Six applications containerised (Node.js, Python, Java, Apache, React, Nginx) |
+| | [Dockerfiles-Images](devops-class-main/Dockerfiles-Images) | Multi-stage build, image documentation, multi-app deployment |
+| | [Docker Network](devops-class-main/Docker%20Network) | Bridge and host networks, container DNS, bind mounts, overlay networks |
+| Kubernetes | [Kubernetes Fundamentals](devops-class-main/Kubernetes%20Fundamentals) | minikube, cluster architecture, Kubernetes Basics tutorial |
+| | [Pods, ReplicaSets & Deployments](devops-class-main/Kubernetes%20Pods%2C%20ReplicaSets%20%26%20Deployments) | Rolling update, blue-green, canary, recreate; Pod lifecycle |
+| | [Networking & Services](devops-class-main/Kubernetes%20Networking%20%26%20Services) | ClusterIP, NodePort, LoadBalancer, ExternalName, headless; CoreDNS |
+| | [Ingress, ConfigMaps & Secrets](devops-class-main/Kubernetes%20Ingress%2C%20ConfigMaps%20%26%20Secrets) | Configuration injection, host/path routing, Ingress vs controller |
+| | [Storage, HPA & Probes](devops-class-main/Kubernetes%20Storage%2C%20HPA%20%26%20Probes) | Volumes, PV/PVC, StorageClasses, HPA under load, probes |
+| | [Kubernetes Troubleshooting](devops-class-main/Kubernetes%20Troubleshooting) | Nine common failure modes reproduced and fixed |
+| | [Helm](devops-class-main/Helm) | Install / upgrade / rollback workflow, chart written from scratch |
+| Delivery | [CI-CD & GitHub Actions](devops-class-main/CI-CD%20%26%20GitHub%20Actions) | CI and CD pipelines (`ci.yml`, `cd.yml`) |
+| | [DevSecOps](devops-class-main/DevSecOps) | SAST, dependency, secret and image scanning as pipeline gates (`devsecops.yml`) |
+| Cloud | [Terraform & Infrastructure as Code](devops-class-main/Terraform%20%26%20Infrastructure%20as%20Code) | Terraform workflow end to end, AWS service research |
+| | [Cloud & Terraform in Action](devops-class-main/Cloud%20%26%20Terraform%20in%20Action) | Multi-tier AWS environment built with Terraform (26 resources) |
+| Operations | [Monitoring, Observability & GitOps](devops-class-main/Monitoring%2C%20Observability%20%26%20GitOps) | Prometheus alerts, observability pillars, Argo CD |
+
+Environment: Windows 11 · Docker Desktop · minikube · AWS `ap-south-1`
