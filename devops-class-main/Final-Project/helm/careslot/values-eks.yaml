@@ -1,12 +1,22 @@
-# AWS EKS (cluster created by terraform/). CI overrides the image repository and
-# sets the tag to the commit SHA on every deploy.
+# AWS EKS values - the GitOps source of truth.
+# Argo CD (argocd/careslot-application.yaml) renders the chart with this file and
+# keeps the cluster equal to it. To deploy a new version, the CI pipeline changes
+# the two image tags below to the new commit SHA and commits the file; Argo CD
+# notices the commit and rolls the new images out. Nobody runs helm against EKS.
 backend:
   image:
+    repository: ghcr.io/palak348/devops-inclass-assignment/careslot-backend
+    tag: "b6fbcd2b630aadd20054b7edf9c4763b8df9669d" # gitops-image-tag (updated by CI)
     pullPolicy: IfNotPresent
 frontend:
   image:
+    repository: ghcr.io/palak348/devops-inclass-assignment/careslot-frontend
+    tag: "b6fbcd2b630aadd20054b7edf9c4763b8df9669d" # gitops-image-tag (updated by CI)
     pullPolicy: IfNotPresent
 postgres:
+  # Created once per cluster with kubectl (random password, never in Git):
+  #   see argocd/README.md
+  existingSecret: careslot-postgres-credentials
   storage:
     storageClass: careslot-gp3   # k8s/storageclass-gp3.yaml (EBS CSI driver, gp3)
 ingress:

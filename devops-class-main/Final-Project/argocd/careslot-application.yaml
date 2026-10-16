@@ -1,0 +1,32 @@
+# Argo CD Application: "the careslot namespace on EKS must always look like the
+# Helm chart in Git, rendered with values-eks.yaml".
+#   kubectl apply -f argocd/careslot-application.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: careslot
+  namespace: argocd
+  # Deleting the Application also deletes everything it created (clean teardown).
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/palak348/devops-inclass-assignment.git
+    targetRevision: main
+    path: devops-class-main/Final-Project/helm/careslot
+    helm:
+      releaseName: careslot
+      valueFiles:
+        - values-eks.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    # Created beforehand from k8s/namespace.yaml (Pod Security "restricted").
+    namespace: careslot
+  syncPolicy:
+    automated:
+      prune: true     # remove resources that were deleted from Git
+      selfHeal: true  # undo manual changes made with kubectl
+    retry:
+      limit: 5
+      backoff: {duration: 10s, factor: 2, maxDuration: 3m}

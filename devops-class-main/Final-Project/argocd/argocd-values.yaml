@@ -1,0 +1,13 @@
+# Argo CD install values for chart argo/argo-cd 10.10.5 (Argo CD v3.5.5).
+#   helm upgrade --install argocd argo/argo-cd --version 10.10.5 -n argocd --create-namespace -f argocd/argocd-values.yaml
+configs:
+  params:
+    # Serve the UI over plain HTTP inside the cluster; it is reached only through
+    # `kubectl port-forward` (localhost), never exposed by an Ingress.
+    server.insecure: true
+
+# Not needed here: no SSO (dex) and no Slack/email notifications. Saves ~3 Pods.
+dex:
+  enabled: false
+notifications:
+  enabled: false
