@@ -269,6 +269,16 @@ jobs:
           [ "$rev" = "$WANT_REVISION" ] && [ "$sync" = "Synced" ] && [ "$health" = "Healthy" ]
           kubectl -n "$K8S_NAMESPACE" rollout status deploy/careslot-backend --timeout=5m
           kubectl -n "$K8S_NAMESPACE" rollout status deploy/careslot-frontend --timeout=5m
+          # Right after a rollout the HPA has no CPU sample for the new Pods yet
+          # (metrics-server needs one scrape), and Argo CD reports it - and so the app -
+          # as Degraded for about a minute. Wait for the settled state before reporting.
+          for _ in $(seq 1 30); do
+            health=$(kubectl -n argocd get application careslot -o jsonpath='{.status.health.status}')
+            echo "$(date +%T) health=$health"
+            [ "$health" = "Healthy" ] && break
+            sleep 10
+          done
+          [ "$health" = "Healthy" ]
 
       - name: Show the rollout
         if: steps.cluster.outputs.ready == 'true'
