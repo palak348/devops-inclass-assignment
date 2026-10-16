@@ -8,11 +8,11 @@ noted. Tick them off as you go.
 
 | ✔ | File | Module | How |
 |---|---|---|---|
-| ☐ | `m2-pytest.png` | M2 | `cd backend` → `.venv\Scripts\python -m pytest -v` → all **45 passed** visible |
-| ☐ | `m4-compose-up.png` | M4 | `docker compose up --build` → wait for `Uvicorn running on http://0.0.0.0:8000` |
-| ☐ | `m1-app-dashboard.png` | M1, M4 | http://localhost:3000 → register a patient, book an appointment → Dashboard |
+| ☑ | `m2-pytest.png` | M2 | `cd backend` → `.venv\Scripts\python -m pytest -v` → all **45 passed** visible |
+| ☑ | `m4-compose-up.png` | M4 | `docker compose up --build` → wait for `Uvicorn running on http://0.0.0.0:8000` |
+| ☑ | `m1-app-dashboard.png` | M1, M4 | http://localhost:3000 → register a patient, book an appointment → Dashboard |
 | ☐ | `m1-app-mobile.png` *(optional)* | M1 | Browser DevTools (F12) → device toolbar → phone size → shows the responsive layout |
-| ☐ | `m1-swagger.png` | M1 | http://localhost:8000/docs |
+| ☑ | `m1-swagger.png` | M1 | http://localhost:8000/docs |
 
 ## M3 / M5 / M6 — GitHub (after you push)
 
