@@ -149,7 +149,6 @@ jobs:
           image-ref: ${{ env.BACKEND_IMAGE }}
           scanners: vuln,secret
           severity: HIGH,CRITICAL
-          ignore-unfixed: true
           exit-code: '1'
           format: table
 
@@ -160,7 +159,6 @@ jobs:
           image-ref: ${{ env.FRONTEND_IMAGE }}
           scanners: vuln,secret
           severity: HIGH,CRITICAL
-          ignore-unfixed: true
           exit-code: '1'
           format: table
 
