@@ -186,8 +186,11 @@ broken image reaches the registry.
 
 | Image | Build | Runs as |
 |---|---|---|
-| `backend/Dockerfile` | `python:3.12-slim`, deps layer cached, healthcheck on `/health`, CMD runs `alembic upgrade head` then `uvicorn` | uid **10001** (`appuser`) |
-| `frontend/Dockerfile` | **multi-stage**: `node:22-alpine` runs `npm ci && npm run build` → only `dist/` is copied into `nginxinc/nginx-unprivileged:1.30-alpine` | uid **101** (`nginx`), port 8080 |
+| `backend/Dockerfile` | `python:3.12-alpine`, `apk upgrade`, deps installed from prebuilt wheels then **pip removed** from the image, healthcheck on `/health`, CMD runs `alembic upgrade head` then `uvicorn` | uid **10001** (`appuser`) |
+| `frontend/Dockerfile` | **multi-stage**: `node:22-alpine` runs `npm ci && npm run build` → only `dist/` is copied into `nginxinc/nginx-unprivileged:1.30-alpine` (+ `apk upgrade`) | uid **101** (`nginx`), port 8080 |
+
+Both images report **0 vulnerabilities of any severity** in Trivy (how each finding was
+removed: [`docs/TRIVY.md`](docs/TRIVY.md)).
 
 The frontend Nginx config is a template: `BACKEND_URL` is filled in at container start
 (`http://backend:8000` in Compose, `http://careslot-backend:8000` in Kubernetes).
@@ -215,9 +218,17 @@ one commit (`commit A → image A → Pod A`).
 ## 7. Security — Trivy
 
 Each image is scanned for vulnerabilities and embedded secrets **before** it is pushed.
-`severity: HIGH,CRITICAL` + `exit-code: 1` fails the pipeline on any fixable HIGH or
-CRITICAL CVE; `ignore-unfixed: true` skips CVEs that have no patched package yet. Result
-and reasoning: [`docs/TRIVY.md`](docs/TRIVY.md).
+`severity: HIGH,CRITICAL` + `exit-code: 1` fails the pipeline on **any** HIGH or CRITICAL
+CVE - including ones without a patch yet (no `ignore-unfixed`). Findings, the CVE explained
+(CVE-2026-85091 in zlib) and how each one was removed: [`docs/TRIVY.md`](docs/TRIVY.md).
+
+**Secret scanning of the whole git history.** `gitleaks git` over every commit of this
+repository reports **no leaks** using the repo-root [`.gitleaks.toml`](../../.gitleaks.toml).
+That file keeps all ~170 default rules and allowlists exactly five strings in two *earlier
+session* write-ups (`DevSecOps/readme.md`, `Kubernetes Ingress, ConfigMaps & Secrets/readme.md`)
+that are deliberately fake teaching examples (`sk-live-abcdef0123456789`, a base64-encoded demo
+Secret, a placeholder `Authorization` header). No real credential has ever been committed;
+AWS keys live only in `aws configure` and in GitHub Actions secrets.
 
 Container scanning is one layer of several: SAST (code), dependency scanning (`npm audit`,
 pip), secret scanning (Trivy `secret` scanner / gitleaks), container scanning (Trivy),
@@ -329,6 +340,8 @@ commands, root cause and fix from a real run: [`troubleshooting/README.md`](trou
 
 ## 12. Final demo script
 
+Full recorded-walkthrough script with commands and spoken notes: **[`docs/DEMO-SCRIPT.md`](docs/DEMO-SCRIPT.md)**. Summary:
+
 | # | Show | How |
 |---|---|---|
 | 1 | Application | Open the UI, register a patient, book an appointment, check in |
@@ -362,4 +375,4 @@ commands, root cause and fix from a real run: [`troubleshooting/README.md`](trou
 | M7 Terraform | `terraform/` |
 | M8 Kubernetes + Helm | `k8s/namespace.yaml`, `helm/careslot/` |
 | M9 Observability | `/metrics`, `monitoring/`, ServiceMonitor + dashboard in the chart |
-| M10 Documentation | this README, `docs/SCREENSHOTS.md` |
+| M10 Documentation + demo | repo-root `README.md` (explains the app), this README, `docs/SCREENSHOTS.md`, `docs/DEMO-SCRIPT.md` (video walkthrough) |
