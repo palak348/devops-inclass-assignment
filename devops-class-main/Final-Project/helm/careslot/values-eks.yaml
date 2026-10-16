@@ -6,12 +6,12 @@
 backend:
   image:
     repository: ghcr.io/palak348/devops-inclass-assignment/careslot-backend
-    tag: "de51c8058bf523e9ae24f0f78f9d47d74e783f6a" # gitops-image-tag (updated by CI)
+    tag: "ea819fff156d14ed0c19d8de87afcef14f176046" # gitops-image-tag (updated by CI)
     pullPolicy: IfNotPresent
 frontend:
   image:
     repository: ghcr.io/palak348/devops-inclass-assignment/careslot-frontend
-    tag: "de51c8058bf523e9ae24f0f78f9d47d74e783f6a" # gitops-image-tag (updated by CI)
+    tag: "ea819fff156d14ed0c19d8de87afcef14f176046" # gitops-image-tag (updated by CI)
     pullPolicy: IfNotPresent
 postgres:
   # Created once per cluster with kubectl (random password, never in Git):
