@@ -20,3 +20,7 @@ test-results.tap
 __pycache__/
 *.py[cod]
 .venv/
+
+# Editor settings
+.idea/
+.vscode/
