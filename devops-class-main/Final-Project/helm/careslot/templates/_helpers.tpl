@@ -23,6 +23,13 @@ app.kubernetes.io/instance: {{ $root.Release.Name }}
 {{ $img.repository }}:{{ $img.tag | default $root.Chart.AppVersion }}
 {{- end -}}
 
-{{- define "careslot.postgresSecret" -}}
+{{/* PostgreSQL Service (= DNS host name) and StatefulSet name. */}}
+{{- define "careslot.postgresHost" -}}
 {{ include "careslot.fullname" . }}-postgres
+{{- end -}}
+
+{{/* Secret holding username/password/database: an existing one (GitOps / Argo CD)
+     or the one this chart creates. */}}
+{{- define "careslot.postgresSecret" -}}
+{{- .Values.postgres.existingSecret | default (include "careslot.postgresHost" .) -}}
 {{- end -}}

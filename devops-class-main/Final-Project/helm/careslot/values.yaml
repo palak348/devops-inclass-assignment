@@ -42,6 +42,9 @@ postgres:
   # Leave empty: a random password is generated on first install and kept on
   # upgrades. Set it with --set postgres.password=... only if you must.
   password: ""
+  # Name of a pre-created Secret (keys: username, password, database). When set,
+  # the chart does not create its own - required for Argo CD / GitOps installs.
+  existingSecret: ""
   storage:
     size: 2Gi
     storageClass: ""   # "" = cluster default (minikube: standard, EKS: gp2)

@@ -1,5 +1,6 @@
 {{- $fullname := include "careslot.fullname" . -}}
 {{- $secret := include "careslot.postgresSecret" . -}}
+{{- $dbhost := include "careslot.postgresHost" . -}}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -42,7 +43,7 @@ spec:
           command:
             - sh
             - -c
-            - until pg_isready -h {{ $secret }} -p 5432 -U {{ .Values.postgres.username }} -d {{ .Values.postgres.database }} -t 2; do echo waiting for postgres; sleep 2; done
+            - until pg_isready -h {{ $dbhost }} -p 5432 -U {{ .Values.postgres.username }} -d {{ .Values.postgres.database }} -t 2; do echo waiting for postgres; sleep 2; done
           resources:
             requests: {cpu: 10m, memory: 16Mi}
             limits: {cpu: 100m, memory: 64Mi}
@@ -65,7 +66,7 @@ spec:
               valueFrom: {secretKeyRef: {name: {{ $secret }}, key: database}}
             # $(VAR) is expanded by Kubernetes from the variables defined above.
             - name: DATABASE_URL
-              value: "postgresql+psycopg://$(DB_USER):$(DB_PASSWORD)@{{ $secret }}:5432/$(DB_NAME)"
+              value: "postgresql+psycopg://$(DB_USER):$(DB_PASSWORD)@{{ $dbhost }}:5432/$(DB_NAME)"
           # Migrations run at container start; give them time before liveness kicks in.
           startupProbe:
             httpGet: {path: /health, port: http}
