@@ -49,7 +49,8 @@ One-time: add `127.0.0.1 careslot.local` to `C:\Windows\System32\drivers\etc\hos
 | ☑ | `m7-aws-eks.png` | M7 | AWS Console → EKS → `careslot-eks` overview: **Active**, Kubernetes **1.36**, region Mumbai visible |
 | ☑ | `m7-aws-eks-nodegroup.png` | M7 | EKS → `careslot-eks` → Compute → **Node groups**: Active, desired size 2 (the *Nodes* tab says "Unauthorized" for the root user - expected, see below) |
 | ☑ | `m8-eks-browser.png` | M8 | The app opened through the AWS load balancer hostname (address bar visible) |
-| ☑ | `m10-eks-deploy.png` | M10 | Actions run where job "3. Deploy to EKS with Helm" is green |
+| ☑ | `m10-eks-deploy.png` | M10 | First EKS deploy (earlier Helm-based job 3, before the switch to GitOps) |
+| ☑ | `m5-pipeline-gitops.png` | M5 | GitOps run: test → build → Trivy → GHCR → bot commit → **Argo CD deployed … to EKS, Synced / Healthy** |
 | ☑ | `m7-terraform-destroy.png` | M7 | `terraform destroy` → `Destroy complete! Resources: N destroyed.` |
 
 > **EKS console "Nodes" tab shows "Error loading resources - Unauthorized"** when signed in as
@@ -65,10 +66,10 @@ while EKS is up for the live demo, also capture the same evidence **from EKS**:
 
 | ✔ | File | How (kubectl pointed at EKS: `aws eks update-kubeconfig --region ap-south-1 --name careslot-eks`) |
 |---|---|---|
-| ☐ | `m8-eks-get-pods.png` | `kubectl get pods -n careslot -o wide` - Pods on the EKS nodes, images tagged with the commit SHA |
-| ☐ | `m8-eks-get-svc.png` | `kubectl get svc,ingress,hpa -n careslot` - Ingress ADDRESS = the AWS load balancer |
-| ☐ | `m8-eks-helm-list.png` | `helm list -n careslot` and `helm history careslot -n careslot` |
-| ☐ | (live) | Change a small piece of UI → commit → push → Actions → new Pods with the new SHA → refresh the load balancer URL |
+| ☑ | `m8-eks-get-pods.png` | `kubectl get pods -n careslot -o wide` - Pods on the EKS nodes, images tagged with the commit SHA |
+| ☑ | `m8-eks-get-svc.png` | `kubectl get svc,ingress,hpa -n careslot` - Ingress ADDRESS = the AWS load balancer |
+| ☑ | `m8-eks-helm-list.png` | `helm list -A` (platform charts) + `kubectl get application careslot -n argocd` - on EKS the app itself is deployed by Argo CD, so `helm list -n careslot` is empty by design |
+| — | (video) | Presentation video **not submitted** (student's decision; GRADING.md: no video = 0 points for M10). The walkthrough script remains in `docs/DEMO-SCRIPT.md` |
 
 Order on the day: `terraform apply` → `kubectl apply -f k8s/namespace.yaml -f k8s/storageclass-gp3.yaml` →
 install ingress-nginx, metrics-server, monitoring (README §9) → push a commit (CI deploys) →
