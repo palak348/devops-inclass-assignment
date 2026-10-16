@@ -1,9 +1,10 @@
 # =============================================================================
 # FINAL PROJECT - CareSlot CI/CD
 #
-#   test  ──►  build-scan-push  ──►  deploy
+#   test  ──►  build-scan-push  ──►  deploy (GitOps)
 #   │          │                     │
-#   │          │                     └─ helm upgrade --install on EKS
+#   │          │                     └─ commit the new image SHA to values-eks.yaml;
+#   │          │                        Argo CD on EKS syncs it (CI watches the rollout)
 #   │          └─ docker build (backend + frontend) → Trivy gate → push to GHCR
 #   └─ ruff + pytest (gate) + Alembic on real Postgres + React build
 #
@@ -182,28 +183,48 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
 
   # ---------------------------------------------------------------------------
-  # 3. DEPLOY - Helm rolls the new SHA-tagged images out to EKS.
-  #    Needs repo secrets AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY. When the
-  #    secrets are missing or the EKS cluster does not exist (not created yet, or
-  #    removed with terraform destroy to save cost) the job skips itself cleanly.
+  # 3. DEPLOY (GitOps) - CI never runs helm/kubectl against the cluster to deploy.
+  #    It records the new desired state in Git (image tags in values-eks.yaml =
+  #    this commit's SHA); Argo CD on EKS watches the repo and syncs it.
+  #    When AWS secrets exist and the cluster is up, the job then waits for
+  #    Argo CD to finish, so the run shows commit -> pipeline -> live rollout.
+  #    (Commits pushed with GITHUB_TOKEN do not trigger workflows - no loop.)
   # ---------------------------------------------------------------------------
   deploy:
-    name: 3. Deploy to EKS with Helm
+    name: 3. GitOps deploy (Argo CD)
     needs: build-scan-push
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    environment: production
+    permissions:
+      contents: write
     env:
       HAS_AWS: ${{ secrets.AWS_ACCESS_KEY_ID != '' }}
+      VALUES_FILE: devops-class-main/Final-Project/helm/careslot/values-eks.yaml
     steps:
-      - name: Skip when no cluster is configured
-        if: env.HAS_AWS != 'true'
-        run: |
-          echo "::notice title=Deploy skipped::AWS secrets not set - provision EKS with Terraform and add AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY to enable deployment."
-          echo "### Deploy skipped - no EKS credentials configured" >> "$GITHUB_STEP_SUMMARY"
-
       - uses: actions/checkout@v4
-        if: env.HAS_AWS == 'true'
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Promote the new images in Git (values-eks.yaml)
+        id: promote
+        run: |
+          sed -i -E "s|^(    tag: \")[0-9a-f]{40}(\" # gitops-image-tag.*)$|\1${GITHUB_SHA}\2|" "$VALUES_FILE"
+          grep -n 'gitops-image-tag' "$VALUES_FILE"
+          test "$(grep -c "tag: \"$GITHUB_SHA\"" "$VALUES_FILE")" -eq 2   # both images updated
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add "$VALUES_FILE"
+          git commit -m "deploy(careslot): promote images to ${GITHUB_SHA::7}" || echo "Tags already at ${GITHUB_SHA::7}"
+          for _ in 1 2 3; do
+            git pull --rebase origin main && git push origin HEAD:main && break
+            sleep 5
+          done
+          echo "commit=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          {
+            echo "### GitOps: desired state updated"
+            echo "\`values-eks.yaml\` now points at \`${GITHUB_SHA::7}\` (commit \`$(git rev-parse --short HEAD)\`)."
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Configure AWS credentials
         if: env.HAS_AWS == 'true'
@@ -221,40 +242,43 @@ jobs:
           echo "Cluster $EKS_CLUSTER: $status"
           if [ "$status" = "ACTIVE" ]; then
             echo "ready=true" >> "$GITHUB_OUTPUT"
+            aws eks update-kubeconfig --name "$EKS_CLUSTER" --region "$AWS_REGION"
           else
             echo "ready=false" >> "$GITHUB_OUTPUT"
-            echo "::notice title=Deploy skipped::EKS cluster $EKS_CLUSTER is $status - run terraform apply to deploy."
-            echo "### Deploy skipped - EKS cluster \`$EKS_CLUSTER\` is $status" >> "$GITHUB_STEP_SUMMARY"
+            echo "::notice title=Rollout not watched::EKS cluster $EKS_CLUSTER is $status - Argo CD deploys the new tag when the cluster runs."
+            echo "### EKS cluster \`$EKS_CLUSTER\` is $status - rollout not watched" >> "$GITHUB_STEP_SUMMARY"
           fi
 
-      - name: Point kubectl at the EKS cluster
+      - name: Wait for Argo CD to sync and roll out
         if: steps.cluster.outputs.ready == 'true'
-        run: aws eks update-kubeconfig --name "$EKS_CLUSTER" --region "$AWS_REGION"
-
-      - uses: azure/setup-helm@v4
-        if: steps.cluster.outputs.ready == 'true'
-
-      - name: helm upgrade --install
-        if: steps.cluster.outputs.ready == 'true'
+        env:
+          WANT_REVISION: ${{ steps.promote.outputs.commit }}
         run: |
-          prefix="${{ needs.build-scan-push.outputs.image-prefix }}"
-          helm upgrade --install careslot "$APP_DIR/helm/careslot" \
-            --namespace "$K8S_NAMESPACE" --create-namespace \
-            -f "$APP_DIR/helm/careslot/values-eks.yaml" \
-            --set backend.image.repository="${prefix}/careslot-backend" \
-            --set backend.image.tag="$GITHUB_SHA" \
-            --set frontend.image.repository="${prefix}/careslot-frontend" \
-            --set frontend.image.tag="$GITHUB_SHA" \
-            --wait --timeout 10m
+          # Ask Argo CD to re-read Git now instead of waiting for its 3-minute poll.
+          kubectl -n argocd annotate application careslot argocd.argoproj.io/refresh=normal --overwrite
+          for _ in $(seq 1 60); do
+            rev=$(kubectl -n argocd get application careslot -o jsonpath='{.status.sync.revision}')
+            sync=$(kubectl -n argocd get application careslot -o jsonpath='{.status.sync.status}')
+            health=$(kubectl -n argocd get application careslot -o jsonpath='{.status.health.status}')
+            echo "$(date +%T) revision=${rev:0:7} sync=$sync health=$health"
+            if [ "$rev" = "$WANT_REVISION" ] && [ "$sync" = "Synced" ] && [ "$health" = "Healthy" ]; then
+              break
+            fi
+            sleep 10
+          done
+          [ "$rev" = "$WANT_REVISION" ] && [ "$sync" = "Synced" ] && [ "$health" = "Healthy" ]
+          kubectl -n "$K8S_NAMESPACE" rollout status deploy/careslot-backend --timeout=5m
+          kubectl -n "$K8S_NAMESPACE" rollout status deploy/careslot-frontend --timeout=5m
 
       - name: Show the rollout
         if: steps.cluster.outputs.ready == 'true'
         run: |
+          kubectl -n argocd get application careslot
           kubectl -n "$K8S_NAMESPACE" get deploy,pods,svc,ingress,hpa -o wide
-          helm -n "$K8S_NAMESPACE" history careslot --max 5
           {
-            echo "### Deployed \`$GITHUB_SHA\` to EKS"
+            echo "### Argo CD deployed \`${GITHUB_SHA::7}\` to EKS"
             echo '```'
+            kubectl -n argocd get application careslot
             kubectl -n "$K8S_NAMESPACE" get pods -o custom-columns=POD:.metadata.name,STATUS:.status.phase,IMAGE:.spec.containers[0].image
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
