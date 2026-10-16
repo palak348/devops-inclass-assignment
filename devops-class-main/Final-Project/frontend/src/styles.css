@@ -646,8 +646,10 @@ tr.late td {
 }
 
 @media (max-width: 760px) {
-  .book-wrap {
-    width: 100%;
+  /* Own full-width row under the title (".topbar > div { flex: 1 }" would
+     otherwise keep it on the title's row and squeeze the heading). */
+  .topbar > .book-wrap {
+    flex: 1 1 100%;
     justify-items: stretch;
   }
 }
