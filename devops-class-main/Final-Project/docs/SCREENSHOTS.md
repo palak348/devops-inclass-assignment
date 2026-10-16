@@ -70,7 +70,7 @@ while EKS is up for the live demo, also capture the same evidence **from EKS**:
 | ☑ | `m8-eks-get-pods.png` | `kubectl get pods -n careslot -o wide` - Pods on the EKS nodes, images tagged with the commit SHA |
 | ☑ | `m8-eks-get-svc.png` | `kubectl get svc,ingress,hpa -n careslot` - Ingress ADDRESS = the AWS load balancer |
 | ☑ | `m8-eks-helm-list.png` | `helm list -A` (platform charts) + `kubectl get application careslot -n argocd` - on EKS the app itself is deployed by Argo CD, so `helm list -n careslot` is empty by design |
-| — | (video) | Presentation video **not submitted** (student's decision; GRADING.md: no video = 0 points for M10). The walkthrough script remains in `docs/DEMO-SCRIPT.md` |
+| — | (video) | Presentation video **not submitted** (student's decision; GRADING.md: no video = 0 points for M10). |
 
 Order on the day: `terraform apply` → `kubectl apply -f k8s/namespace.yaml -f k8s/storageclass-gp3.yaml` →
 install ingress-nginx, metrics-server, monitoring (README §9) → push a commit (CI deploys) →

@@ -342,8 +342,7 @@ commands, root cause and fix from a real run: [`troubleshooting/README.md`](trou
 
 ## 12. Presentation walkthrough
 
-The walkthrough follows SUBMISSION.md's required order (slides in [`demo/`](../../demo/)); full script with
-commands and spoken notes: **[`docs/DEMO-SCRIPT.md`](docs/DEMO-SCRIPT.md)**.
+Order of a live walkthrough, following SUBMISSION.md (slides in [`demo/`](../../demo/)):
 
 | # | Part | What is shown |
 |---|---|---|
@@ -374,4 +373,4 @@ Extra material for questions: HPA load test (`scripts/load-test.sh`), troublesho
 | M7 Terraform | `terraform/` |
 | M8 Kubernetes + Helm | `k8s/namespace.yaml`, `helm/careslot/`, `argocd/` (GitOps on EKS) |
 | M9 Observability | `/metrics`, `monitoring/`, ServiceMonitor + dashboard in the chart |
-| M10 Documentation + presentation | repository-root `README.md` (full technical documentation incl. known issues), this README, `demo/` (slide deck PPTX + PDF), `docs/DEMO-SCRIPT.md` |
+| M10 Documentation + presentation | repository-root `README.md` (full technical documentation incl. known issues), this README, `demo/` (slide deck PPTX + PDF) |
