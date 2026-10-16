@@ -185,8 +185,9 @@ jobs:
 
   # ---------------------------------------------------------------------------
   # 3. DEPLOY - Helm rolls the new SHA-tagged images out to EKS.
-  #    Needs repo secrets AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY. Until the
-  #    EKS cluster exists (Terraform, done last) the job skips itself cleanly.
+  #    Needs repo secrets AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY. When the
+  #    secrets are missing or the EKS cluster does not exist (not created yet, or
+  #    removed with terraform destroy to save cost) the job skips itself cleanly.
   # ---------------------------------------------------------------------------
   deploy:
     name: 3. Deploy to EKS with Helm
@@ -214,15 +215,29 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Point kubectl at the EKS cluster
+      - name: Check that the EKS cluster exists
+        id: cluster
         if: env.HAS_AWS == 'true'
+        run: |
+          status=$(aws eks describe-cluster --name "$EKS_CLUSTER" --region "$AWS_REGION" --query cluster.status --output text 2>/dev/null || echo MISSING)
+          echo "Cluster $EKS_CLUSTER: $status"
+          if [ "$status" = "ACTIVE" ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "::notice title=Deploy skipped::EKS cluster $EKS_CLUSTER is $status - run terraform apply to deploy."
+            echo "### Deploy skipped - EKS cluster \`$EKS_CLUSTER\` is $status" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Point kubectl at the EKS cluster
+        if: steps.cluster.outputs.ready == 'true'
         run: aws eks update-kubeconfig --name "$EKS_CLUSTER" --region "$AWS_REGION"
 
       - uses: azure/setup-helm@v4
-        if: env.HAS_AWS == 'true'
+        if: steps.cluster.outputs.ready == 'true'
 
       - name: helm upgrade --install
-        if: env.HAS_AWS == 'true'
+        if: steps.cluster.outputs.ready == 'true'
         run: |
           prefix="${{ needs.build-scan-push.outputs.image-prefix }}"
           helm upgrade --install careslot "$APP_DIR/helm/careslot" \
@@ -235,7 +250,7 @@ jobs:
             --wait --timeout 10m
 
       - name: Show the rollout
-        if: env.HAS_AWS == 'true'
+        if: steps.cluster.outputs.ready == 'true'
         run: |
           kubectl -n "$K8S_NAMESPACE" get deploy,pods,svc,ingress,hpa -o wide
           helm -n "$K8S_NAMESPACE" history careslot --max 5
