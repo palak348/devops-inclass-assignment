@@ -15,7 +15,7 @@ their output and what I understood from it.
 | Code | [`devops-class-main/Final-Project`](devops-class-main/Final-Project) |
 | Pipeline | [`.github/workflows/final-project.yml`](.github/workflows/final-project.yml) · [runs](https://github.com/palak348/devops-inclass-assignment/actions/workflows/final-project.yml) |
 | Evidence for every grading item | [`docs/SCREENSHOTS.md`](devops-class-main/Final-Project/docs/SCREENSHOTS.md) |
-| Demo video + slides | [`demo/`](demo/) |
+| Presentation slides | [`demo/`](demo/) (PPTX + PDF) |
 | Deeper module docs | [Project README](devops-class-main/Final-Project/README.md) · [Terraform](devops-class-main/Final-Project/terraform/README.md) · [Argo CD](devops-class-main/Final-Project/argocd/README.md) · [Monitoring](devops-class-main/Final-Project/monitoring/README.md) · [Trivy](devops-class-main/Final-Project/docs/TRIVY.md) · [Troubleshooting](devops-class-main/Final-Project/troubleshooting/README.md) |
 
 ## 1. Project description and purpose
