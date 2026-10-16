@@ -1,4 +1,7 @@
-FROM python:3.12-slim
+# Alpine base: Trivy reports 0 HIGH/CRITICAL CVEs for it, including unfixed ones
+# (python:3.12-slim / Debian carried 44 unfixed HIGH), so the CI gate can fail on
+# every HIGH/CRITICAL finding without an "ignore unfixed" exception.
+FROM python:3.12-alpine
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
@@ -8,9 +11,19 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /app
 
 # Dependencies first so this layer is cached until requirements.txt changes.
+# --only-binary: use the prebuilt musl wheels; never compile (no build tools in
+# the image), so a missing wheel fails the build loudly instead of silently.
+# Hardening, each step driven by a Trivy finding:
+#  - apk upgrade: OS fixes released after the base image (e.g. zlib CVE-2026-85091)
+#  - pip is only needed to install; it (and the copies of urllib3/msgpack/setuptools
+#    it vendors, plus ensurepip's bundled wheels) is removed afterwards, so the
+#    runtime image ships no package installer and none of its CVEs.
 COPY requirements.txt .
-RUN pip install -r requirements.txt \
-    && useradd --create-home --uid 10001 --shell /usr/sbin/nologin appuser
+RUN apk upgrade --no-cache \
+    && pip install --only-binary=:all: -r requirements.txt \
+    && pip uninstall -y pip \
+    && rm -rf /usr/local/lib/python3.12/ensurepip \
+    && adduser -D -u 10001 -h /home/appuser -s /sbin/nologin appuser
 
 COPY alembic.ini ./
 COPY alembic ./alembic

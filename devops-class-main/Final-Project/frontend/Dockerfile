@@ -14,6 +14,13 @@ RUN npm run build
 # stay behind in the build stage.
 FROM nginxinc/nginx-unprivileged:1.30-alpine
 
+# OS security fixes released after the base image was built (Trivy flagged zlib
+# CVE-2026-85091). Root is needed only for apk; the image then switches straight
+# back to the unprivileged "nginx" user (uid 101).
+USER root
+RUN apk upgrade --no-cache
+USER 101
+
 # Where /api requests are proxied to. Overridden per environment
 # (docker compose: backend:8000, Kubernetes: the backend Service name).
 ENV BACKEND_URL=http://backend:8000
