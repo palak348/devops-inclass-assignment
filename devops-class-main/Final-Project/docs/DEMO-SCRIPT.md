@@ -1,195 +1,155 @@
-# CareSlot — demo video script (recorded walkthrough)
+# CareSlot — presentation video script
 
-Covers, in order, everything README.md requires the student to demonstrate —
-*Application → Git commit → CI pipeline → Docker image → Security scan → Registry →
-Terraform infrastructure → Kubernetes deployment → Helm → Ingress → Autoscaling →
-Monitoring → Troubleshooting* — plus all 15 steps of "Part O – Final demo", and the
-graded M10 item **"commit a change, watch the pipeline run, see the deployment update"**.
+Follows **SUBMISSION.md → "Video Requirements" in the required order**:
 
-Target length **15–20 min**. Speak the *italic* lines (or paraphrase) — M10 grades that you
-understand *what you built and why each component exists*.
+1. Present the PPT slides — what you built, architecture overview
+2. Live walkthrough of: **Codebase** → **CI/CD** (trigger a push, pipeline end to end) →
+   **Terraform** (`terraform plan` output, AWS Console VPC + EKS) → **ArgoCD** (synced
+   application, GitOps flow) → **Kubernetes** (`kubectl get pods`, services, ingress) →
+   **Prometheus** (Targets page, app `UP`) → **Grafana** (live dashboard)
+
+GRADING.md M10 adds: "Be clear enough that the grader can follow along without asking
+clarifying questions" and "Be uploaded directly to the GitHub repository (under a `demo/`
+folder or as a release asset)". Planned length **≈18 min**. Spoken lines are in *italics* —
+paraphrase freely; the slides' speaker notes contain the same text.
 
 ---
 
-## Before you press record
+## Before you press record (≈10 min, not recorded)
 
-Everything runs on EKS (`terraform apply` done, add-ons installed, baseline deployed by CI).
+1. **EKS is running** with everything installed (Terraform, ingress-nginx, metrics-server,
+   monitoring, Argo CD, the `careslot` Application **Synced / Healthy**).
+2. PowerShell — point your kubectl at EKS for the recording:
+   ```
+   aws eks update-kubeconfig --region ap-south-1 --name careslot-eks
+   kubectl get application careslot -n argocd
+   ```
+3. Three more PowerShell windows, each left running:
+   ```
+   kubectl port-forward -n argocd svc/argocd-server 8443:80
+   kubectl port-forward -n monitoring svc/monitoring-kube-prometheus-prometheus 9090:9090
+   kubectl port-forward -n monitoring svc/monitoring-grafana 3001:80
+   ```
+4. Log in once (so no password typing on camera):
+   - Argo CD http://localhost:8443 — user `admin`, password:
+     `[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String((kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}")))`
+   - Grafana http://localhost:3001 — user `admin`, password:
+     `[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String((kubectl -n monitoring get secret grafana-admin -o jsonpath="{.data.admin-password}")))`
+     → open **CareSlot - API Overview**
+5. Browser tabs: the app (`kubectl get ingress -n careslot` → ADDRESS), GitHub repo, GitHub
+   Actions, AWS Console (region **Mumbai**) on EKS → `careslot-eks`, Argo CD, Prometheus
+   `http://localhost:9090/targets?search=careslot`, Grafana.
+6. Repo terminal: `git pull --rebase origin main` (GitOps bot commits arrive after each push).
+7. Editor open at `devops-class-main/Final-Project/frontend/src/App.jsx`, line 11.
+8. Optional: start a light load in the background so Grafana panels move during the video
+   (ask Claude to run `scripts/load-test.sh`).
 
-| Window | Prepare |
+---
+
+## Part 1 — Slides (≈5 min)
+
+Open `demo/CareSlot-presentation.pptx` in slide-show mode; one or two sentences per slide
+(speaker notes):
+
+| Slide | Say (short) |
 |---|---|
-| Browser tab 1 | `http://<LOAD-BALANCER-HOST>` (CareSlot on EKS) |
-| Browser tab 2 | `https://github.com/palak348/devops-inclass-assignment/actions` |
-| Browser tab 3 | GHCR: `https://github.com/palak348/devops-inclass-assignment/pkgs/container/devops-inclass-assignment%2Fcareslot-backend` |
-| Browser tab 4 | AWS Console, region **Mumbai** → EKS → `careslot-eks` |
-| PowerShell A | repo folder, `kubectl config current-context` shows the **EKS** cluster |
-| PowerShell B | `kubectl port-forward -n careslot svc/careslot-backend 18000:8000` (for Swagger) |
-| PowerShell C | `kubectl port-forward -n monitoring svc/monitoring-grafana 3001:80` (log in to Grafana before recording) |
-| PowerShell D | `kubectl port-forward -n monitoring svc/monitoring-kube-prometheus-prometheus 9090:9090` |
-| Editor | `devops-class-main/Final-Project/frontend/src/App.jsx` open at line 11 |
+| 1 Title | *Who you are, what CareSlot is* |
+| 2 What CareSlot does | *Patients, doctors, bookings; the booking rules the API enforces* |
+| 3 Tech stack | *Layer by layer: React/Nginx, FastAPI, PostgreSQL, pytest, Docker, Actions, Terraform, Kubernetes* |
+| 4 Architecture | *Browser → AWS load balancer → ingress-nginx → frontend / backend → PostgreSQL; Prometheus scrapes; Argo CD watches Git* |
+| 5 CI/CD flow | *7 steps from push to Argo CD; what stops a bad change* |
+| 6 Infrastructure | *VPC with 2 public + 2 private subnets, EKS 1.36, 53 resources, ~$0.40/h* |
+| 7 Kubernetes setup | *Helm chart, Ingress, HPA 2 → 6, Argo CD, hardening* |
+| 8 Observability | */metrics, ServiceMonitor, Grafana* |
+| 9 Security | *44 → 0 CVEs, 5 → 0 leaks, non-root* |
+| 10 Key learnings | *Pick two or three you can tell as a story* |
+| 11 Thank you | *Next steps — then "now the live walkthrough"* |
 
-Get the load-balancer host: `kubectl get ingress -n careslot` → ADDRESS column.
+## Part 2 — Live walkthrough
 
----
+### 2.1 Codebase (≈2 min)
+Show the repo in the editor / GitHub:
+`devops-class-main/Final-Project/` → `backend/app` (main.py, routers/appointments.py — the
+booking rules), `backend/tests` (45 tests), `backend/Dockerfile` + `frontend/Dockerfile`,
+`helm/careslot` (templates, values-eks.yaml), `argocd/`, `terraform/`, `monitoring/`, and the
+workflow `.github/workflows/final-project.yml`.
 
-## 1. Application (≈1.5 min) — Part O step 1
+*"The backend is FastAPI with routers per resource; the booking rules live in
+appointments.py and are covered by 45 tests. Each component has its own folder: Dockerfiles,
+the Helm chart, Argo CD, Terraform and monitoring. The pipeline is one workflow file."*
 
-Tab 1 (app on EKS). Patients → register `Riya Sharma` / `9876543210` → Book appointment →
-Dashboard → **Check in**.
+### 2.2 CI/CD — trigger a push, show it end to end (≈6 min)
+1. Editor line 11: `'Live overview of bookings and visits'` →
+   `'Live overview of bookings and visits · v1.1'`, save.
+2. Terminal:
+   ```
+   git add devops-class-main/Final-Project/frontend/src/App.jsx
+   git commit -m "feat(frontend): show release v1.1 on the dashboard"
+   git push origin main
+   ```
+3. GitHub → **Actions** → the new run of *Final Project - CareSlot CI/CD*; open each job as it runs:
+   - **1. Test** — *"ruff, 45 pytest tests, the Alembic migrations on a real PostgreSQL, and the
+     React build. If anything fails here, nothing gets built."*
+   - **2. Build, Trivy scan, push** — expand *Trivy scan - backend image → Run Trivy*:
+     *"Both images are scanned before they're pushed; any HIGH or CRITICAL vulnerability fails
+     the job. Both are at zero. Then they go to GHCR, tagged with this commit's SHA."*
+   - **3. GitOps deploy (Argo CD)** — *Promote the new images in Git*: *"CI doesn't run helm.
+     It commits the new SHA into values-eks.yaml"* → *Wait for Argo CD to sync and roll out*:
+     *"…and waits until Argo CD reports the new revision Synced and Healthy."*
+4. Run green → switch to the app tab → **refresh**: the subtitle shows **"· v1.1"**.
+   *"The change I committed a few minutes ago is live on EKS."*
 
-*"This is CareSlot, a clinic front-desk app I built. Reception registers patients, manages
-doctors and books appointments. The backend rejects double bookings for a doctor or a patient,
-bookings in the past, and invalid phone numbers. It's running on my AWS EKS cluster right now,
-reached through the load balancer address in the URL bar."*
-
-## 2. API (≈1.5 min) — Part O step 2
-
-Browser → `http://localhost:18000/docs` → Swagger. Run **POST /api/patients**, **GET
-/api/patients/{id}**, **PUT** (change the phone), **DELETE**.
-
-*"The backend is FastAPI. Swagger documents every endpoint; here I create, read, update and
-delete a record live against the API inside Kubernetes."*
-
-## 3. Database (≈45 s) — Part O step 3
-
-PowerShell A:
+### 2.3 Terraform — plan output + AWS Console (≈2 min)
 ```
-kubectl exec -n careslot careslot-postgres-0 -- psql -U careslot -d careslot -c "select id, patient_id, doctor_id, scheduled_at, status from appointments;"
+cd devops-class-main/Final-Project/terraform
+terraform plan
 ```
-*"Data lives in PostgreSQL. The schema is created by Alembic migrations when the backend
-starts - here is the appointments table with the visit I just booked."*
+→ *"No changes. Your infrastructure matches the configuration."*
+*"The whole environment is code: this plan compares my Terraform files with what's really
+in AWS - no drift. When I first ran it, the plan was 53 resources to add"* (show
+`docs/screenshots/m7-terraform-plan.png`). AWS Console (Mumbai): **VPC → Subnets**
+(filter `careslot`: 2 public + 2 private) → **EKS → careslot-eks**: Active, 1.36, node group.
 
-## 4. Git commit (≈1 min) — Part O step 4, M10
+### 2.4 Argo CD — synced application, GitOps flow (≈2 min)
+http://localhost:8443 → application **careslot**: **Synced** + **Healthy**, the resource tree
+(Deployments → ReplicaSets → Pods, Services, Ingress, HPA, StatefulSet, ServiceMonitor).
+Click *History and rollback* / the sync status: the revision is the bot commit
+`deploy(careslot): promote images to …` — open that commit on GitHub to show the two changed
+image tags.
 
-Editor: line 11, change
-`'Live overview of bookings and visits'` → `'Live overview of bookings and visits · v1.1'`, save.
-PowerShell A:
-```
-git add devops-class-main/Final-Project/frontend/src/App.jsx
-git commit -m "feat(frontend): show release v1.1 on the dashboard"
-git log --oneline -1
-```
-*"Now the important part: I change the application and commit it. Every commit can become a
-release, and the commit SHA will follow the change all the way to the running Pods."*
+*"This is GitOps: Git is the source of truth. CI wrote the new image tag into Git, Argo CD
+noticed the commit and rolled it out. If I change something by hand with kubectl, Argo CD's
+self-heal puts it back."*
 
-## 5. CI pipeline (≈1 min) — Part O step 5, M10
-
-```
-git push origin main
-```
-Tab 2 → the new run of **Final Project - CareSlot CI/CD** → open job **1. Test**.
-
-*"The push triggers GitHub Actions. The first job is the quality gate: ruff, 45 pytest tests,
-Alembic migrations against a real PostgreSQL, and the React build. If a test fails, the
-pipeline stops and no image is built."*
-
-> The run takes about 6–8 min. Do steps 9–15 while it runs, then come back for 6–8 and the rollout.
-
-## 9. Terraform infrastructure (≈1.5 min) — Part O step 9
-
-Editor: `terraform/main.tf`. Tab 4: EKS cluster **Active**, node group.
-
-*"The infrastructure is code. Terraform creates the VPC with two public and two private
-subnets, a NAT gateway, and the EKS cluster with a managed node group. I can create and destroy
-the whole environment with one command, which is how I keep the cost under control."*
-
-## 10. Kubernetes (≈1 min) — Part O step 10
-
+### 2.5 Kubernetes (≈1 min)
 ```
 kubectl get pods -n careslot -o wide
 kubectl get svc -n careslot
-```
-*"Two backend and two frontend replicas plus PostgreSQL with a persistent EBS volume. Services
-give the Pods stable names inside the cluster; all of them are ClusterIP, nothing is exposed
-directly."*
-
-## 11. Helm (≈45 s) — Part O step 11
-
-```
-helm list -n careslot
-helm history careslot -n careslot
-```
-*"The whole application is one Helm chart. Every deployment is a numbered revision, so I can
-roll back with `helm rollback`."*
-
-## 12. Ingress (≈45 s) — Part O step 12
-
-```
 kubectl get ingress -n careslot
+kubectl get hpa -n careslot
 ```
-*"One Ingress sends `/api` to the FastAPI service and everything else to the React frontend.
-The ingress-nginx controller sits behind the AWS load balancer you saw in the URL bar."*
+*"Two backend and two frontend Pods - now with the new image SHA - plus PostgreSQL. Services are
+ClusterIP; the Ingress is the only way in, through the AWS load balancer address. The HPA
+keeps between two and six backend Pods."*
 
-## 13. Autoscaling (≈2 min) — Part O step 13
+### 2.6 Prometheus (≈45 s)
+http://localhost:9090/targets?search=careslot → `serviceMonitor/careslot/careslot-backend/0`
+**2/2 UP**. *"Prometheus scrapes every backend Pod through the ServiceMonitor - both are UP."*
 
-PowerShell A: `kubectl get hpa -n careslot -w` — **cue Claude to start the load test**.
-Watch TARGETS rise above 60 % and REPLICAS go 2 → 6.
-
-*"The Horizontal Pod Autoscaler watches CPU. Under load it adds backend Pods automatically, and
-removes them again when the load is gone."*
-
-## 14. Monitoring (≈1.5 min) — Part O step 14
-
-Browser → `http://localhost:9090/targets` (search `careslot`: 2/2 **UP**) → `http://localhost:3001`
-→ dashboard **CareSlot - API Overview** (requests/s, p95 latency, 5xx rate, pods, CPU).
-
-*"The backend exposes Prometheus metrics on /metrics. A ServiceMonitor tells Prometheus to
-scrape every backend Pod, and Grafana shows request rate, latency and errors - you can see the
-load test and the extra Pods here."*
-
-## 15. Troubleshooting (≈2 min) — Part O step 15
-
-```
-kubectl apply -f devops-class-main/Final-Project/troubleshooting/broken-image.yaml
-kubectl get pods -n careslot -l app.kubernetes.io/name=backend-canary
-kubectl describe pod -n careslot -l app.kubernetes.io/name=backend-canary
-```
-*"Now a failure: this Deployment points at an image tag that was never built. The Pod is stuck
-in ImagePullBackOff, and `describe` shows why - the tag doesn't exist in the registry. The fix
-is to point it at a real SHA tag."*
-```
-kubectl delete -f devops-class-main/Final-Project/troubleshooting/broken-image.yaml
-```
-
----
-
-## Back to the pipeline — steps 6, 7, 8 and the deployment update (≈3 min, M10)
-
-Tab 2 → the run should now be green or on job 3.
-
-- **6. Docker image** — job **2. Build, Trivy scan, push** → steps *Build backend image* /
-  *Build frontend image*.
-  *"Both images are built in CI; the frontend is a multi-stage build, and both run as non-root
-  users."*
-- **7. Security scan** — expand **Trivy scan - backend image → Run Trivy** → Report Summary.
-  *"Trivy scans both images before they are pushed and fails the pipeline on any HIGH or
-  CRITICAL vulnerability. Both are at zero; in docs/TRIVY.md I explain how I removed the
-  earlier findings, for example the zlib CVE-2026-85091."*
-- **8. Registry** — Tab 3 (GHCR): the newest version tag **is the commit SHA** from step 4.
-  *"Images go to GitHub Container Registry, tagged with the commit SHA - never `latest`."*
-- **Deploy** — job **3. Deploy to EKS with Helm** → *Show the rollout*.
-
-**The deployment update (the graded moment):**
-```
-kubectl get pods -n careslot -o custom-columns=POD:.metadata.name,IMAGE:.spec.containers[0].image
-```
-→ frontend/backend images now end in the **new commit SHA**. Tab 1 → **refresh** → the
-dashboard subtitle shows **"· v1.1"**.
-
-*"Helm rolled the new version out with zero downtime, and the change I committed a few
-minutes ago is now live on EKS. Commit, pipeline, security scan, registry, deployment - all
-automatic."*
-
-## Close (≈20 s)
-
-*"Everything you saw - the app, tests, Dockerfiles, pipeline, Terraform, Helm chart and
-monitoring config - is in the public repository, with screenshots for every requirement in
-docs/SCREENSHOTS.md. After recording I destroy the AWS environment with Terraform."*
+### 2.7 Grafana (≈1 min)
+http://localhost:3001 → **CareSlot - API Overview** (namespace `careslot`): requests/s,
+p95 latency, 5xx error rate, backend Pods, CPU per Pod.
+*"Live metrics from the application: request rate, latency, zero errors, and the number of
+backend Pods the autoscaler is running. That's the full project - thank you."*
 
 ---
 
 ## After recording
 
-1. Save the video (keep the original file; note its length).
-2. Tell Claude "recorded" → cleanup: helm uninstall, PVC delete, LB/EBS check, `terraform destroy`,
-   delete the GitHub secrets, deactivate the IAM access key.
-3. Switch kubectl back to the local cluster: `kubectl config use-context minikube`.
+1. Keep the original file; export **MP4**. GitHub rejects files over **100 MB** — if it is
+   larger, compress (e.g. HandBrake "Fast 1080p30") or attach it to a GitHub **Release** as an
+   asset (allowed by GRADING.md) and link it from `demo/README.md`.
+2. Save as `demo/CareSlot-demo.mp4`, commit, `git pull --rebase origin main`, push.
+3. Tell Claude "recorded" → cleanup: delete the Argo CD Application, PVC, uninstall Helm
+   releases, confirm no load balancer / EBS left, `terraform destroy`, delete the GitHub
+   secrets, deactivate the IAM access key, `kubectl config use-context minikube`.

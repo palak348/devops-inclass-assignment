@@ -340,27 +340,24 @@ commands, root cause and fix from a real run: [`troubleshooting/README.md`](trou
 
 ---
 
-## 12. Final demo script
+## 12. Presentation video
 
-Full recorded-walkthrough script with commands and spoken notes: **[`docs/DEMO-SCRIPT.md`](docs/DEMO-SCRIPT.md)**. Summary:
+The video (in [`demo/`](../../demo/)) follows SUBMISSION.md's required order; full script with
+commands and spoken notes: **[`docs/DEMO-SCRIPT.md`](docs/DEMO-SCRIPT.md)**.
 
-| # | Show | How |
+| # | Part | What is shown |
 |---|---|---|
-| 1 | Application | Open the UI, register a patient, book an appointment, check in |
-| 2 | API | `/docs` → create / read / update / delete an appointment |
-| 3 | Database | `kubectl exec -it careslot-postgres-0 -n careslot -- psql -U careslot -d careslot -c "select id, doctor_id, patient_id, scheduled_at, status from appointments;"` |
-| 4 | Git | Change something small (e.g. a dashboard subtitle in `frontend/src/App.jsx`), `git commit` |
-| 5 | CI | `git push` → Actions tab → test job (pytest) running |
-| 6 | Docker | Build job building both images |
-| 7 | Security | Trivy steps — "0 fixable HIGH/CRITICAL" |
-| 8 | Registry | GHCR packages with the new SHA tag |
-| 9 | Terraform | `terraform/main.tf`, `terraform output` |
-| 10 | Kubernetes | `kubectl get pods,svc -n careslot` — new Pods with the new image: `kubectl get pods -n careslot -o jsonpath='{.items[*].spec.containers[0].image}'` |
-| 11 | Helm | `helm list -n careslot`, `helm history careslot -n careslot` (rollback: `helm rollback careslot <rev> -n careslot`) |
-| 12 | Ingress | Open the app via the Ingress hostname / load balancer |
-| 13 | HPA | `scripts/load-test.sh` + `kubectl get hpa -n careslot -w` |
-| 14 | Monitoring | Prometheus Targets (UP) and the Grafana dashboard reacting to the load |
-| 15 | Failure | Apply a `troubleshooting/` manifest, diagnose, fix |
+| 1 | Slides | `demo/CareSlot-presentation.pptx` - what was built, architecture |
+| 2 | Codebase | folder structure, key files (routers, tests, Dockerfiles, Helm chart, Argo CD, Terraform, workflow) |
+| 3 | CI/CD | a UI change is committed and pushed; the Actions run goes test → build → Trivy → GHCR → GitOps commit → Argo CD Healthy; the app shows the change |
+| 4 | Terraform | `terraform plan` (no drift), AWS Console: VPC subnets + EKS cluster |
+| 5 | Argo CD | `careslot` Application Synced / Healthy, resource tree, synced to the bot's GitOps commit |
+| 6 | Kubernetes | `kubectl get pods / svc / ingress / hpa -n careslot` |
+| 7 | Prometheus | Targets page - `careslot-backend` 2/2 UP |
+| 8 | Grafana | CareSlot - API Overview dashboard, live |
+
+Extra material for questions: HPA load test (`scripts/load-test.sh`), troubleshooting labs
+(`troubleshooting/`), Swagger CRUD and the PostgreSQL table (`kubectl exec … psql`).
 
 ---
 
