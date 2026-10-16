@@ -20,7 +20,7 @@ noted. Tick them off as you go.
 |---|---|---|---|
 | ☑ | `m3-commits.png` | M3 | GitHub → repo → **Commits**, or `git log --oneline -20` (≥10 commits) |
 | ☑ | `m5-pipeline-green.png` | M5 | **Actions** → "Final Project - CareSlot CI/CD" → green run. Also copy the run URL into the submission form |
-| ☑ | `m6-trivy-backend.png`, `m6-trivy-frontend.png` | M6 | Open the run → job "2. Build, Trivy scan, push" → expand each **Trivy scan** step → expand **Run Trivy** → the **Report Summary** table must be visible
+| ☑ | `m6-trivy-backend.png`, `m6-trivy-frontend.png` | M6 | Open the run → job "2. Build, Trivy scan, push" → expand each **Trivy scan** step → expand **Run Trivy** → the **Report Summary** table must be visible |
 | ☐ | `m5-ghcr-packages.png` | M5 | GitHub profile → **Packages** → `careslot-backend` → shows the tag = commit SHA |
 
 ## M8 / M9 — Kubernetes on minikube
