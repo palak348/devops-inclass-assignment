@@ -19,7 +19,7 @@ This repository also contains the practical work from every earlier session of t
 | Source | [`devops-class-main/Final-Project/`](devops-class-main/Final-Project) |
 | Pipeline | [`.github/workflows/final-project.yml`](.github/workflows/final-project.yml) · [runs](https://github.com/palak348/devops-inclass-assignment/actions/workflows/final-project.yml) |
 | Evidence (every rubric item) | [`docs/EVIDENCE.md`](devops-class-main/Final-Project/docs/EVIDENCE.md) |
-| Presentation | [`demo/`](demo/) (PPTX + PDF) |
+| Presentation | [`demo/`](devops-class-main/Final-Project/demo) (PPTX + PDF) |
 | Component docs | [Backend](devops-class-main/Final-Project/backend/README.md) · [Frontend](devops-class-main/Final-Project/frontend/README.md) · [Helm chart](devops-class-main/Final-Project/helm/careslot/README.md) · [Terraform](devops-class-main/Final-Project/terraform/README.md) · [Argo CD](devops-class-main/Final-Project/argocd/README.md) · [Monitoring](devops-class-main/Final-Project/monitoring/README.md) · [Trivy](devops-class-main/Final-Project/docs/TRIVY.md) · [Troubleshooting](devops-class-main/Final-Project/troubleshooting/README.md) |
 
 ## Contents
@@ -228,7 +228,6 @@ Prometheus scrape every backend Pod (Targets page: `serviceMonitor/careslot/care
 │   ├── ci.yml · cd.yml          Session 16 (CI/CD & GitHub Actions)
 │   └── devsecops.yml            Session 17 (DevSecOps)
 ├── .gitleaks.toml               secret-scanning policy for the whole history
-├── demo/                        presentation deck (PPTX + PDF)
 └── devops-class-main/
     ├── Final-Project/           CareSlot
     │   ├── backend/             FastAPI app, Alembic migrations, pytest suite, Dockerfile
@@ -241,7 +240,8 @@ Prometheus scrape every backend Pod (Targets page: `serviceMonitor/careslot/care
     │   ├── monitoring/          kube-prometheus-stack values (Prometheus, Grafana)
     │   ├── troubleshooting/     deliberately broken manifests + investigation write-up
     │   ├── scripts/             smoke test and load test
-    │   └── docs/                evidence index, Trivy report, screenshots
+    │   ├── docs/                evidence index, Trivy report, screenshots
+    │   └── demo/                presentation deck (PPTX + PDF)
     └── <session folders>/       earlier coursework, see below
 ```
 

@@ -114,7 +114,8 @@ Final-Project/
 ├── terraform/          AWS VPC + EKS
 ├── troubleshooting/    broken-image.yaml, broken-service.yaml + walkthrough
 ├── scripts/            smoke-test.sh (end-to-end API checks), load-test.sh (HPA demo)
-└── docs/               EVIDENCE.md (rubric → screenshot index), TRIVY.md, screenshots/
+├── docs/               EVIDENCE.md (rubric → screenshot index), TRIVY.md, screenshots/
+└── demo/               presentation deck (PPTX + PDF)
 
 ../../.github/workflows/final-project.yml   CI/CD (GitHub only runs workflows from the repo root)
 ```
