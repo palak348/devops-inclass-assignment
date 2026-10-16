@@ -63,9 +63,19 @@ docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy:lates
 # drop --severity to see MEDIUM/LOW too: both images report none (2026-10-16)
 ```
 
-The CVE database changes daily, so the CI run on the day of submission is the authoritative
-result; its screenshots are `docs/screenshots/m6-trivy-backend.png` and
-`docs/screenshots/m6-trivy-frontend.png`.
+### CI result (authoritative)
+
+Run [38861267530](https://github.com/palak348/devops-inclass-assignment/actions/runs/38861267530)
+(commit `b6fbcd2`, strict gate - no `ignore-unfixed`), Trivy 0.70.0 via `trivy-action@v0.36.0`:
+
+| Image | OS detected | Packages | Vulnerabilities |
+|---|---|---|---|
+| `careslot-backend:b6fbcd2…` | Alpine 3.24.2 | 38 OS packages + Python site-packages | **0** |
+| `careslot-frontend:b6fbcd2…` | Alpine 3.24.2 | 70 OS packages | **0** |
+
+Screenshots: `docs/screenshots/m6-trivy-backend.png`, `docs/screenshots/m6-trivy-frontend.png`.
+The CVE database changes daily, so a later run can report something new - which is exactly
+why the scan runs on every build and blocks the push.
 
 ## Where this sits among other security controls
 
