@@ -1,0 +1,47 @@
+# =============================================================================
+# Repository-wide secret scanning policy (Gitleaks)
+#
+# gitleaks picks this file up automatically when it scans the repository root,
+# e.g.   gitleaks git .        (every commit in the history)
+#        gitleaks dir .        (the working tree)
+#
+# All ~170 default rules stay on. The only exceptions are five strings in two
+# earlier-session write-ups that are deliberately FAKE teaching examples - each
+# was reviewed by hand, grants access to nothing, and is excused only when BOTH
+# the exact string AND the exact file match, so the same value anywhere else
+# (or any other secret in these files) is still reported.
+# The same exceptions were already documented per-session in
+# devops-class-main/DevSecOps/security/gitleaks.toml.
+# =============================================================================
+
+title = "devops-inclass-assignment - secret scanning policy"
+
+[extend]
+useDefault = true
+
+# Session 17 (DevSecOps) README quotes the scanners' own output, so it contains
+# the fake values the scanners were pointed at:
+#   sk-live-abcdef0123456789     - the "bad code" sample used to prove the Semgrep
+#                                  no-hardcoded-secret rule fires
+#   local-demo-token-1234567890  - placeholder bearer token in the curl examples
+[[allowlists]]
+description = "Fake demo values quoted in the Session 17 DevSecOps write-up"
+condition = "AND"
+paths = ['''devops-class-main/DevSecOps/readme\.md''']
+regexes = [
+  '''sk-live-abcdef0123456789''',
+  '''local-demo-token-1234567890''',
+]
+
+# Session 12 README shows that `kubectl get secret -o yaml` reveals base64 data.
+# The two values decode to made-up demo strings:
+#   c2stZGVtby0xMjM0NTY3ODkwYWJjZGVm -> "sk-demo-1234567890abcdef"
+#   UzNjcjN0UEBzc3cwcmQh             -> a sample demo password
+[[allowlists]]
+description = "Base64 demo Secret values in the Session 12 Kubernetes Secrets write-up"
+condition = "AND"
+paths = ['''devops-class-main/Kubernetes Ingress, ConfigMaps & Secrets/readme\.md''']
+regexes = [
+  '''c2stZGVtby0xMjM0NTY3ODkwYWJjZGVm''',
+  '''UzNjcjN0UEBzc3cwcmQh''',
+]
