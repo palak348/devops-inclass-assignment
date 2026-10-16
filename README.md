@@ -1,44 +1,204 @@
-# DevOps — In-Class Assignments
+# DevOps — In-Class Assignments & Final Project
 
 **Palak Agrawal** · 24BCS10504
 
-Each folder is one session's practical: the commands I ran, the output they
-produced, and what I understood from it.
+This repository holds every session's practical and the **final capstone project, CareSlot**,
+documented below. Each earlier session folder (index at the end) contains the commands I ran,
+their output and what I understood from it.
 
-## Final Project — CareSlot (clinic appointment system)
+---
 
-**What the application does.** CareSlot is a front-desk app for a small clinic.
-Reception staff register **patients** (10-digit mobile number, optional email and
-date of birth), manage the **doctor** roster and each doctor's availability, and
-**book appointments**. A visit moves through `SCHEDULED → CHECKED_IN → COMPLETED`
-(or `CANCELLED`). The API refuses to double-book a doctor *or* a patient for
-overlapping time slots, refuses bookings in the past and keeps finished visits
-read-only. The dashboard shows today's appointments, the waiting room, upcoming
-and completed visits, available doctors and the busiest doctor, and works on phones.
-
-**How it is built and delivered.**
-
-```text
-React + Vite (Nginx, non-root)  ──/api──►  FastAPI (non-root)  ──►  PostgreSQL (Alembic migrations)
-
-git push ─► GitHub Actions: ruff + pytest (45 tests) ─► React build ─► docker build ×2
-         ─► Trivy gate (fail on any HIGH/CRITICAL) ─► GHCR, tag = commit SHA
-         ─► Helm upgrade on AWS EKS (Terraform: VPC + EKS) ─► Ingress, HPA,
-            Prometheus + Grafana
-```
+# Final Project — CareSlot (clinic appointment system)
 
 | | |
 |---|---|
-| Project folder + full documentation | [`devops-class-main/Final-Project`](devops-class-main/Final-Project) · [README](devops-class-main/Final-Project/README.md) |
+| Code | [`devops-class-main/Final-Project`](devops-class-main/Final-Project) |
+| Pipeline | [`.github/workflows/final-project.yml`](.github/workflows/final-project.yml) · [runs](https://github.com/palak348/devops-inclass-assignment/actions/workflows/final-project.yml) |
 | Evidence for every grading item | [`docs/SCREENSHOTS.md`](devops-class-main/Final-Project/docs/SCREENSHOTS.md) |
-| Security scan result + CVE explained | [`docs/TRIVY.md`](devops-class-main/Final-Project/docs/TRIVY.md) |
-| CI/CD pipeline | [`.github/workflows/final-project.yml`](.github/workflows/final-project.yml) · [runs](https://github.com/palak348/devops-inclass-assignment/actions/workflows/final-project.yml) |
-| Run it locally | `cd devops-class-main/Final-Project && cp .env.example .env && docker compose up --build` → http://localhost:3000 |
+| Demo video + slides | [`demo/`](demo/) |
+| Deeper module docs | [Project README](devops-class-main/Final-Project/README.md) · [Terraform](devops-class-main/Final-Project/terraform/README.md) · [Argo CD](devops-class-main/Final-Project/argocd/README.md) · [Monitoring](devops-class-main/Final-Project/monitoring/README.md) · [Trivy](devops-class-main/Final-Project/docs/TRIVY.md) · [Troubleshooting](devops-class-main/Final-Project/troubleshooting/README.md) |
 
-Secret scanning: `gitleaks git` over the whole history of this repository reports no
-leaks (policy in [`.gitleaks.toml`](.gitleaks.toml)).
+## 1. Project description and purpose
 
-## Contents
+CareSlot is a front-desk application for a small clinic. Reception staff register **patients**
+(10-digit mobile number, optional email and date of birth), manage the **doctor** roster and
+each doctor's availability, and **book appointments**. A visit moves through
+`SCHEDULED → CHECKED_IN → COMPLETED` (or `CANCELLED`). The API refuses to double-book a doctor
+*or* a patient for overlapping slots, rejects bookings in the past and keeps finished visits
+read-only. The dashboard shows today's appointments, the waiting room, upcoming and completed
+visits, available doctors and the busiest doctor, and works on phones.
+
+The purpose of the project is the **delivery chain** around that application: from a commit on a
+laptop, through automated tests, container builds, a security gate and a registry, to a
+GitOps-managed, autoscaling and monitored deployment on AWS EKS created with Terraform.
+
+## 2. Architecture
+
+```text
+                    ┌────────────────────────── AWS ap-south-1 (Terraform) ──────────────────────────┐
+                    │  VPC 10.20.0.0/16 · 2 public + 2 private subnets · NAT gateway                  │
+  Browser ──HTTP──► │  Classic LB ─► ingress-nginx ─┬─ /api ─► careslot-backend  (FastAPI, ×2..6 HPA) │
+                    │  (public subnets)             └─ /    ─► careslot-frontend (React on Nginx, ×2)  │
+                    │                                            │                                     │
+                    │  EKS 1.36 · 2 × m7i-flex.large            ▼                                     │
+                    │  (private subnets)              careslot-postgres (StatefulSet + EBS gp3 PVC)    │
+                    │                                                                                  │
+                    │  monitoring: Prometheus ◄─ ServiceMonitor ─ /metrics ; Grafana dashboard         │
+                    │  argocd: Argo CD ── watches Git ── keeps namespace "careslot" = helm/careslot    │
+                    └──────────────────────────────────────────────────────────────────────────────────┘
+
+ git push ─► GitHub Actions ─► 1 Test: ruff · 45 pytest tests · Alembic on PostgreSQL · React build
+                            ─► 2 Build: docker build ×2 ─► Trivy gate (any HIGH/CRITICAL fails) ─► GHCR (tag = SHA)
+                            ─► 3 GitOps: commit new SHA to values-eks.yaml ─► Argo CD syncs ─► rolling update
+```
+
+| Component | Role |
+|---|---|
+| Frontend | React SPA served by unprivileged Nginx (uid 101); proxies `/api` locally, Ingress routes it on Kubernetes |
+| Backend | FastAPI REST API (uid 10001), SQLAlchemy, Pydantic validation, `/health`, `/ready`, `/metrics` |
+| Database | PostgreSQL 16; schema by Alembic migrations run at backend start (advisory lock for parallel replicas) |
+| Kubernetes | Helm chart `careslot`: Deployments, ClusterIP Services, StatefulSet + PVC, Ingress, HPA, ServiceMonitor, dashboard ConfigMap; namespace with Pod Security `restricted` |
+| GitOps | Argo CD Application with automated sync, prune and self-heal |
+| Observability | kube-prometheus-stack (Prometheus Operator, Prometheus, Grafana, kube-state-metrics, node-exporter) |
+
+## 3. Tech stack
+
+| Area | Tools |
+|---|---|
+| Languages | Python 3.12, JavaScript (React 19), HCL, YAML, Bash |
+| Application | FastAPI, SQLAlchemy 2, Pydantic, Alembic, PostgreSQL 16, React + Vite 8, Nginx |
+| Testing / quality | pytest (45 tests, isolated SQLite per test), ruff |
+| Containers | Docker, Docker Compose, multi-stage builds, Alpine base images, non-root users |
+| CI/CD | GitHub Actions, GitHub Container Registry (GHCR) |
+| Security | Trivy (image vulnerabilities + secrets), gitleaks (whole git history), Pod Security `restricted` |
+| Infrastructure | Terraform 1.16, AWS provider 6.69, `terraform-aws-modules/vpc` 6.7.3 + `eks` 21.29.0, AWS VPC / EKS / EBS / ELB |
+| Kubernetes | EKS 1.36, Helm 4, ingress-nginx 4.15.1, metrics-server 3.14.0, HPA; minikube for local work |
+| GitOps | Argo CD v3.5.5 (Helm chart 10.10.5) |
+| Observability | Prometheus, Grafana (kube-prometheus-stack 92.8.0), prometheus-fastapi-instrumentator |
+
+## 4. Local setup
+
+```bash
+cd devops-class-main/Final-Project
+cp .env.example .env            # put a real password into .env (git-ignored)
+docker compose up --build       # postgres → backend → frontend, started in order by health checks
+```
+
+| URL | |
+|---|---|
+| http://localhost:3000 | CareSlot UI |
+| http://localhost:8000/docs | Swagger (interactive API docs) |
+| http://localhost:8000/health · `/ready` · `/metrics` | probes and Prometheus metrics |
+
+Tests: `cd backend && python -m venv .venv && .venv\Scripts\pip install -r requirements-dev.txt && .venv\Scripts\python -m pytest -v`
+End-to-end check of a running stack: `bash scripts/smoke-test.sh` (15 checks through the frontend proxy).
+
+## 5. CI/CD pipeline
+
+[`.github/workflows/final-project.yml`](.github/workflows/final-project.yml) runs on every push
+to `main` that touches the project (and on pull requests, without pushing or deploying).
+
+| Job | What it does | Fails the pipeline when |
+|---|---|---|
+| **1. Test** | ruff lint + format check → `pytest -v` → Alembic upgrade/downgrade/upgrade against a PostgreSQL service container → `npm ci && npm run build` | any lint error, failing test, broken migration or frontend build error |
+| **2. Build, Trivy scan, push** | `docker build` backend + frontend → **Trivy** on both (`HIGH,CRITICAL`, vulnerabilities + secrets, `exit-code 1`, no `ignore-unfixed`) → push to GHCR | any HIGH/CRITICAL CVE - the image is never pushed |
+| **3. GitOps deploy** | writes the commit SHA into `helm/careslot/values-eks.yaml` and commits it (`github-actions[bot]`); if the EKS cluster is running, refreshes Argo CD and waits until it is **Synced + Healthy** on that commit | Argo CD does not reach Healthy on the new revision |
+
+Images: `ghcr.io/palak348/devops-inclass-assignment/careslot-{backend,frontend}:<commit SHA>` -
+never `latest`, so every running Pod traces back to one commit. Both images currently report
+**0 vulnerabilities of any severity** ([`docs/TRIVY.md`](devops-class-main/Final-Project/docs/TRIVY.md)).
+
+## 6. Terraform infrastructure
+
+[`terraform/`](devops-class-main/Final-Project/terraform) creates, in **ap-south-1 (Mumbai)**:
+a VPC `10.20.0.0/16` with **2 public + 2 private subnets** in two AZs, an internet gateway,
+one NAT gateway, and the **EKS 1.36** cluster `careslot-eks` with a managed node group of
+**2 × m7i-flex.large** (AL2023) plus the add-ons vpc-cni, kube-proxy, coredns,
+eks-pod-identity-agent and aws-ebs-csi-driver - **53 resources**.
+
+```bash
+cd devops-class-main/Final-Project/terraform
+terraform init && terraform plan -out tfplan && terraform apply tfplan     # ~15-20 min
+aws eks update-kubeconfig --region ap-south-1 --name careslot-eks
+terraform destroy                                                          # after removing the LB/PVC, see terraform/README.md
+```
+
+No credentials in code (`aws configure` / GitHub secrets only), `terraform.tfvars.example`
+documents the variables, no KMS key or log group so `destroy` leaves nothing billable behind.
+
+## 7. Kubernetes / Helm deployment
+
+Commands in sections 7 and 8 run from `devops-class-main/Final-Project`.
+
+**EKS (GitOps, used for the demo)** - once per cluster:
+
+```bash
+kubectl apply -f k8s/namespace.yaml -f k8s/storageclass-gp3.yaml
+kubectl create secret generic careslot-postgres-credentials -n careslot \
+  --from-literal=username=careslot --from-literal=database=careslot --from-literal=password="$(openssl rand -hex 24)"
+helm upgrade --install ingress-nginx ingress-nginx/ingress-nginx --version 4.15.1 -n ingress-nginx --create-namespace
+helm upgrade --install metrics-server metrics-server/metrics-server --version 3.14.0 -n kube-system
+# monitoring: see section 8
+helm upgrade --install argocd argo/argo-cd --version 10.10.5 -n argocd --create-namespace -f argocd/argocd-values.yaml
+kubectl apply -f argocd/careslot-application.yaml        # Argo CD deploys helm/careslot with values-eks.yaml
+```
+
+From then on **every `git push` deploys itself**: CI commits the new image SHA, Argo CD syncs it.
+
+**minikube (local)** - plain Helm:
+
+```bash
+minikube addons enable ingress && minikube addons enable metrics-server
+kubectl apply -f k8s/namespace.yaml
+helm upgrade --install careslot helm/careslot -n careslot -f helm/careslot/values-minikube.yaml --wait
+```
+
+What the chart deploys: backend ×2 (HPA 2-6 on CPU 60 %), frontend ×2, PostgreSQL StatefulSet
+with a PVC, ClusterIP Services, Ingress (`/api` → backend, `/` → frontend), probes
+(`/health`, `/ready`, `/healthz`), non-root security contexts, ServiceMonitor and Grafana dashboard.
+
+## 8. Observability
+
+```bash
+kubectl create secret generic grafana-admin -n monitoring --from-literal=admin-user=admin --from-literal=admin-password="$(openssl rand -base64 18)"
+helm upgrade --install monitoring prometheus-community/kube-prometheus-stack --version 92.8.0 -n monitoring \
+  -f monitoring/prometheus-values.yaml -f monitoring/grafana-values.yaml
+```
+
+The backend exposes Prometheus metrics on `/metrics`; the chart's **ServiceMonitor** makes
+Prometheus scrape every backend Pod (Targets page: `serviceMonitor/careslot/careslot-backend/0`
+**UP**); Grafana loads the **CareSlot - API Overview** dashboard: requests/s, p95 latency,
+5xx error rate, live backend Pod count and per-Pod CPU (the HPA's signal).
+
+## 9. Security
+
+- Images scanned by Trivy before push; the gate fails on any HIGH/CRITICAL CVE.
+- `gitleaks git` over the **whole history** of this repository reports **no leaks**
+  (policy: [`.gitleaks.toml`](.gitleaks.toml) - default rules + five reviewed fake demo strings
+  in earlier session write-ups).
+- All containers run as non-root with all Linux capabilities dropped; backend root filesystem
+  is read-only; the namespace enforces Pod Security `restricted`.
+- Database and Grafana passwords are generated inside the cluster, never stored in Git.
+
+## 10. Known issues and limitations
+
+| # | Limitation | Why / what production would do |
+|---|---|---|
+| 1 | **No user login** - anyone who can reach the UI can book or delete | Out of scope for the capstone; production needs authentication (OIDC) and roles (reception, doctor) |
+| 2 | **HTTP only**, reached on the load balancer's DNS name | No domain or certificate; production: Route 53 + ACM/cert-manager TLS on the Ingress |
+| 3 | **PostgreSQL runs inside the cluster**, one replica, no backups | Simple and cheap for a demo; production: Amazon RDS (Multi-AZ, automated backups) |
+| 4 | **Terraform state is local** | Single developer; a team needs an S3 backend with locking |
+| 5 | **One NAT gateway** | Saves cost; an outage in its AZ cuts outbound traffic from the private subnets |
+| 6 | **AWS Free-plan account constraints**: only Free-Tier-eligible instance types (so `m7i-flex.large`, not `t3.medium`) and a small EC2 vCPU quota → node group capped at 2 nodes, no cluster autoscaler | At peak the HPA's 6 backend Pods share 2 nodes; a paid account would add Karpenter/Cluster Autoscaler |
+| 7 | **Monitoring has no persistent storage** and Alertmanager is disabled | Prometheus keeps 2 days in memory/emptyDir; production: persistent volumes + alert rules to Slack/email |
+| 8 | **CI uses a long-lived IAM access key** (GitHub secret) to watch the rollout | Production: GitHub OIDC → IAM role with least privilege; the key is deleted after the demo |
+| 9 | **GitOps bot commits**: after each push the pipeline adds a `deploy(careslot): …` commit | Run `git pull --rebase origin main` before pushing again |
+| 10 | EKS console *Nodes* tab shows "Unauthorized" for the root user | Only the cluster creator (`careslot-admin`) has a Kubernetes access entry; the *Node groups* tab works |
+| 11 | HPA scales on CPU only; latency histogram buckets are coarse (p95 caps at 1 s under overload) | Good enough to demonstrate; production would add request-rate based scaling and finer buckets |
+
+---
+
+# Other coursework
 
 | Folder | What's inside |
 |---|---|
@@ -49,8 +209,6 @@ leaks (policy in [`.gitleaks.toml`](.gitleaks.toml)).
 | [`Docker-Fundamental`](devops-class-main/Docker-Fundamental) | Six Hello World apps containerised — Node.js, Python, Java, Apache, React, Nginx |
 | [`Dockerfiles-Images`](devops-class-main/Dockerfiles-Images) | Multi-stage build on port 8080, plus three app types running together |
 | [`Docker Network`](devops-class-main/Docker%20Network) | Custom bridge networks, container DNS, host network, bind mount, overlay networks |
-| [`Final-Project`](devops-class-main/Final-Project) | **Capstone - CareSlot clinic appointments**: React + FastAPI + PostgreSQL, pytest, Docker, GitHub Actions, Trivy, GHCR, Terraform (AWS VPC + EKS), Helm, Ingress, HPA, Prometheus + Grafana |
+| [`Final-Project`](devops-class-main/Final-Project) | **Capstone - CareSlot** (documented above) |
 
-## Environment
-
-Windows 11 · Docker Desktop · Ubuntu containers for the Linux exercises
+Environment: Windows 11 · Docker Desktop · minikube · AWS (ap-south-1)

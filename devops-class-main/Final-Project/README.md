@@ -106,7 +106,8 @@ Final-Project/
 ├── backend/            FastAPI app (app/), Alembic (alembic/), pytest (tests/), Dockerfile
 ├── frontend/           React app (src/), Nginx template (nginx/), multi-stage Dockerfile
 ├── docker-compose.yml  postgres + backend + frontend
-├── helm/careslot/      Helm chart (+ values-minikube.yaml, values-eks.yaml, Grafana dashboard)
+├── helm/careslot/      Helm chart (+ values-minikube.yaml, values-eks.yaml = GitOps desired state, Grafana dashboard)
+├── argocd/             Argo CD install values + the CareSlot Application (GitOps)
 ├── k8s/                namespace.yaml (bootstrap)
 ├── monitoring/         kube-prometheus-stack values: prometheus-values.yaml, grafana-values.yaml
 ├── terraform/          AWS VPC + EKS
@@ -207,7 +208,7 @@ Triggers on **push to `main`** (and PRs) when anything under `Final-Project/` ch
 |---|---|
 | **1. Test** | setup Python 3.12 → `ruff` → **`pytest -v`** (fails the build) → Alembic on PostgreSQL → setup Node 22 → **`npm ci && npm run build`** |
 | **2. Build, scan, push** | `docker build` backend + frontend → **Trivy** on both → login to GHCR → **push** |
-| **3. Deploy** | AWS credentials → `aws eks update-kubeconfig` → **`helm upgrade --install`** with the new tag → shows the rollout. Skips itself until the AWS secrets exist. |
+| **3. GitOps deploy** | commits the new commit SHA into `helm/careslot/values-eks.yaml` (`github-actions[bot]`) → **Argo CD** on EKS syncs that commit → when the cluster is running, the job refreshes Argo CD and waits for **Synced + Healthy** on the new revision, then shows the rollout. CI never runs `helm` against EKS. |
 
 Images: `ghcr.io/palak348/devops-inclass-assignment/careslot-backend:<commit SHA>` and
 `.../careslot-frontend:<commit SHA>` — never `latest`, so every running Pod traces back to
@@ -307,7 +308,8 @@ helm upgrade --install metrics-server metrics-server/metrics-server --version 3.
 # monitoring stack: monitoring/README.md
 kubectl apply -f k8s/namespace.yaml
 kubectl apply -f k8s/storageclass-gp3.yaml     # EBS gp3 disk for PostgreSQL
-# then push a commit - the CI deploy job runs helm upgrade --install with the SHA tag
+# GitOps: database Secret + Argo CD + the Application - exact commands in argocd/README.md
+# then every git push deploys itself: CI commits the SHA, Argo CD syncs it
 ```
 
 ### HPA demo
@@ -373,6 +375,6 @@ Full recorded-walkthrough script with commands and spoken notes: **[`docs/DEMO-S
 | M5 CI/CD | `.github/workflows/final-project.yml` |
 | M6 DevSecOps | Trivy steps in the workflow, `docs/TRIVY.md` |
 | M7 Terraform | `terraform/` |
-| M8 Kubernetes + Helm | `k8s/namespace.yaml`, `helm/careslot/` |
+| M8 Kubernetes + Helm | `k8s/namespace.yaml`, `helm/careslot/`, `argocd/` (GitOps on EKS) |
 | M9 Observability | `/metrics`, `monitoring/`, ServiceMonitor + dashboard in the chart |
-| M10 Documentation + demo | repo-root `README.md` (explains the app), this README, `docs/SCREENSHOTS.md`, `docs/DEMO-SCRIPT.md` (video walkthrough) |
+| M10 Documentation + presentation | repository-root `README.md` (full technical documentation incl. known issues), this README, `demo/` (presentation video MP4 + slide deck), `docs/DEMO-SCRIPT.md` |
