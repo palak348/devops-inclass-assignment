@@ -87,6 +87,6 @@ design; the `helm upgrade --install` evidence comes from minikube and the first 
 
 | Artefact | Location |
 |---|---|
-| Technical documentation | [Repository README](../../../README.md) (incl. known issues and limitations) · [project README](../README.md) |
+| Technical documentation | [Project README](../README.md) (all required sections incl. known issues and limitations) |
 | Slide deck | [`demo/CareSlot-presentation.pptx`](../demo/CareSlot-presentation.pptx) · [`.pdf`](../demo/CareSlot-presentation.pdf) |
 | Presentation video | Not submitted |

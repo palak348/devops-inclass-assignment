@@ -44,7 +44,7 @@ kubectl apply -f argocd/careslot-application.yaml
 kubectl get application careslot -n argocd        # SYNC STATUS Synced, HEALTH STATUS Healthy
 ```
 
-Install ingress-nginx, metrics-server and the monitoring stack first (README §9) so the
+Install ingress-nginx, metrics-server and the monitoring stack first (project README §12 and §13) so the
 Ingress gets a load balancer, the HPA has CPU metrics and the chart's ServiceMonitor CRD exists.
 
 ## Look at it
