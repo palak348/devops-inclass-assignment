@@ -48,8 +48,20 @@ Local run (2026-10-15): backend `exit=0`, frontend `exit=0` (Alpine 3.24.2: 0 vu
 Without `--ignore-unfixed` the backend reports `Total: 44 (HIGH: 44, CRITICAL: 0)`, all
 with no fixed version.
 
-> The CVE database changes daily, so the CI run on the day of submission is the
-> authoritative result — its screenshot goes in `docs/screenshots/m6-trivy.png`.
+### CI result (authoritative)
+
+Pipeline run [38849464815](https://github.com/palak348/devops-inclass-assignment/actions/runs/38849464815),
+job *2. Build, Trivy scan, push to GHCR*, Trivy **0.70.0** (`aquasecurity/trivy-action@v0.36.0`),
+vulnerability + secret scanners enabled, `HIGH,CRITICAL`, `--ignore-unfixed`, `exit-code 1`:
+
+| Image (tag = commit SHA `96a483d…`) | OS detected | Packages scanned | Vulnerabilities |
+|---|---|---|---|
+| `careslot-backend` | Debian 13.7 | 87 OS packages + Python site-packages | **0** |
+| `careslot-frontend` | Alpine 3.24.2 | 70 OS packages | **0** |
+
+Both steps passed, so the images were pushed. Screenshots: `docs/screenshots/m6-trivy-backend.png`,
+`docs/screenshots/m6-trivy-frontend.png`. The CVE database changes daily, so a later run can
+report something different - which is exactly why the scan runs on every build.
 
 ## Where this sits among other security controls
 
