@@ -5,6 +5,39 @@
 Each folder is one session's practical: the commands I ran, the output they
 produced, and what I understood from it.
 
+## Final Project — CareSlot (clinic appointment system)
+
+**What the application does.** CareSlot is a front-desk app for a small clinic.
+Reception staff register **patients** (10-digit mobile number, optional email and
+date of birth), manage the **doctor** roster and each doctor's availability, and
+**book appointments**. A visit moves through `SCHEDULED → CHECKED_IN → COMPLETED`
+(or `CANCELLED`). The API refuses to double-book a doctor *or* a patient for
+overlapping time slots, refuses bookings in the past and keeps finished visits
+read-only. The dashboard shows today's appointments, the waiting room, upcoming
+and completed visits, available doctors and the busiest doctor, and works on phones.
+
+**How it is built and delivered.**
+
+```text
+React + Vite (Nginx, non-root)  ──/api──►  FastAPI (non-root)  ──►  PostgreSQL (Alembic migrations)
+
+git push ─► GitHub Actions: ruff + pytest (45 tests) ─► React build ─► docker build ×2
+         ─► Trivy gate (fail on any HIGH/CRITICAL) ─► GHCR, tag = commit SHA
+         ─► Helm upgrade on AWS EKS (Terraform: VPC + EKS) ─► Ingress, HPA,
+            Prometheus + Grafana
+```
+
+| | |
+|---|---|
+| Project folder + full documentation | [`devops-class-main/Final-Project`](devops-class-main/Final-Project) · [README](devops-class-main/Final-Project/README.md) |
+| Evidence for every grading item | [`docs/SCREENSHOTS.md`](devops-class-main/Final-Project/docs/SCREENSHOTS.md) |
+| Security scan result + CVE explained | [`docs/TRIVY.md`](devops-class-main/Final-Project/docs/TRIVY.md) |
+| CI/CD pipeline | [`.github/workflows/final-project.yml`](.github/workflows/final-project.yml) · [runs](https://github.com/palak348/devops-inclass-assignment/actions/workflows/final-project.yml) |
+| Run it locally | `cd devops-class-main/Final-Project && cp .env.example .env && docker compose up --build` → http://localhost:3000 |
+
+Secret scanning: `gitleaks git` over the whole history of this repository reports no
+leaks (policy in [`.gitleaks.toml`](.gitleaks.toml)).
+
 ## Contents
 
 | Folder | What's inside |
