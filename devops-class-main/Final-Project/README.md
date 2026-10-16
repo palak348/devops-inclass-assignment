@@ -16,7 +16,7 @@ Developer ──► Git / GitHub ──► GitHub Actions
                                  ├─ ruff + pytest (gate) + Alembic on real Postgres
                                  ├─ React build
                                  ├─ docker build backend + frontend
-                                 ├─ Trivy scan (fail on fixable HIGH/CRITICAL)
+                                 ├─ Trivy scan (fail on any HIGH/CRITICAL)
                                  └─ push to GHCR, tag = commit SHA
                                             │
                      Terraform ──► AWS VPC (2 public + 2 private subnets) + EKS

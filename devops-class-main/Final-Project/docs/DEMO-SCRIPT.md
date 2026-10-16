@@ -1,4 +1,4 @@
-# CareSlot — presentation video script
+# CareSlot — presentation walkthrough script
 
 Follows **SUBMISSION.md → "Video Requirements" in the required order**:
 
@@ -144,12 +144,11 @@ backend Pods the autoscaler is running. That's the full project - thank you."*
 
 ---
 
-## After recording
+## After the walkthrough
 
-1. Keep the original file; export **MP4**. GitHub rejects files over **100 MB** — if it is
-   larger, compress (e.g. HandBrake "Fast 1080p30") or attach it to a GitHub **Release** as an
-   asset (allowed by GRADING.md) and link it from `demo/README.md`.
-2. Save as `demo/CareSlot-demo.mp4`, commit, `git pull --rebase origin main`, push.
-3. Tell Claude "recorded" → cleanup: delete the Argo CD Application, PVC, uninstall Helm
+If it is recorded: export MP4 (GitHub rejects files over 100 MB - compress, or attach it to a
+GitHub Release), save it in `demo/`, commit, `git pull --rebase origin main`, push.
+
+Cleanup: delete the Argo CD Application, PVC, uninstall Helm
    releases, confirm no load balancer / EBS left, `terraform destroy`, delete the GitHub
    secrets, deactivate the IAM access key, `kubectl config use-context minikube`.

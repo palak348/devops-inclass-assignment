@@ -12,3 +12,4 @@ ruff.toml
 pytest.ini
 Dockerfile
 .dockerignore
+README.md
