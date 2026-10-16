@@ -21,7 +21,7 @@ noted. Tick them off as you go.
 | ☑ | `m3-commits.png` | M3 | GitHub → repo → **Commits**, or `git log --oneline -20` (≥10 commits) |
 | ☑ | `m5-pipeline-green.png` | M5 | **Actions** → "Final Project - CareSlot CI/CD" → green run. Also copy the run URL into the submission form |
 | ☑ | `m6-trivy-backend.png`, `m6-trivy-frontend.png` | M6 | Open the run → job "2. Build, Trivy scan, push" → expand each **Trivy scan** step → expand **Run Trivy** → the **Report Summary** table must be visible |
-| ☐ | `m5-ghcr-packages.png` | M5 | GitHub profile → **Packages** → `careslot-backend` → shows the tag = commit SHA |
+| ☑ | `m5-ghcr-packages.png` | M5 | GitHub profile → **Packages** → `careslot-backend` → shows the tag = commit SHA |
 
 ## M8 / M9 — Kubernetes on minikube
 
@@ -31,14 +31,14 @@ One-time: add `127.0.0.1 careslot.local` to `C:\Windows\System32\drivers\etc\hos
 
 | ✔ | File | Module | How |
 |---|---|---|---|
-| ☐ | `m8-get-pods.png` | M8 | `kubectl get pods -n careslot` → all `Running` (2 backend, 2 frontend, postgres) |
-| ☐ | `m8-get-svc.png` | M8 | `kubectl get svc,ingress,hpa -n careslot` |
-| ☐ | `m8-helm-list.png` | M8 | `helm list -n careslot` |
-| ☐ | `m8-ingress-browser.png` | M8 | Browser → **http://careslot.local** (address bar visible) |
-| ☐ | `m8-hpa-scaling.png` | M8 | Terminal 1: `kubectl get hpa -n careslot -w` · Terminal 2: `bash scripts/load-test.sh 180 30` → REPLICAS going 2 → 6 |
-| ☐ | `m9-metrics.png` | M9 | `kubectl port-forward -n careslot svc/careslot-backend 8000:8000` then `curl http://localhost:8000/metrics` |
-| ☐ | `m9-prometheus-targets.png` | M9 | `kubectl port-forward -n monitoring svc/monitoring-kube-prometheus-prometheus 9090:9090` → http://localhost:9090/targets → `serviceMonitor/careslot/careslot-backend/0` **UP** |
-| ☐ | `m9-grafana.png` | M9 | `kubectl port-forward -n monitoring svc/monitoring-grafana 3001:80` → http://localhost:3001 → Dashboards → **CareSlot - API Overview** (run the load test first so the panels move). Password: `kubectl get secret grafana-admin -n monitoring -o jsonpath="{.data.admin-password}"` and base64-decode it |
+| ☑ | `m8-get-pods.png` | M8 | `kubectl get pods -n careslot` → all `Running` (2 backend, 2 frontend, postgres) |
+| ☑ | `m8-get-svc.png` | M8 | `kubectl get svc,ingress,hpa -n careslot` |
+| ☑ | `m8-helm-list.png` | M8 | `helm list -n careslot` |
+| ☑ | `m8-ingress-browser.png` → covered by `m8-eks-browser.png` | M8 | Rubric: "Ingress hostname **or LoadBalancer IP**" - the EKS screenshot shows the app through the AWS load balancer in front of the Ingress. Optional extra on minikube: hosts entry `127.0.0.1 careslot.local` + `minikube tunnel` → http://careslot.local |
+| ☑ | `m8-hpa-scaling.png` | M8 | Terminal 1: `kubectl get hpa -n careslot -w` · Terminal 2: `bash scripts/load-test.sh 180 30` → REPLICAS going 2 → 6 |
+| ☑ | `m9-metrics.png` | M9 | `kubectl port-forward -n careslot svc/careslot-backend 18000:8000` then `curl.exe -s http://localhost:18000/metrics | Select-String "http_request"` (8000 is taken by docker compose) |
+| ☑ | `m9-prometheus-targets.png` | M9 | `kubectl port-forward -n monitoring svc/monitoring-kube-prometheus-prometheus 9090:9090` → http://localhost:9090/targets → `serviceMonitor/careslot/careslot-backend/0` **UP** |
+| ☑ | `m9-grafana.png` | M9 | `kubectl port-forward -n monitoring svc/monitoring-grafana 3001:80` → http://localhost:3001 → Dashboards → **CareSlot - API Overview** (run the load test first so the panels move). Password: `kubectl get secret grafana-admin -n monitoring -o jsonpath="{.data.admin-password}"` and base64-decode it |
 
 ## M7 — AWS (during the EKS session, before destroy)
 
